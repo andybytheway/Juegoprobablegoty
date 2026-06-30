@@ -1,0 +1,1187 @@
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Gran Aventura del Mapache</title>
+    <!-- Fuente estilo Arcade para que se vea súper profesional -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            background: #111;
+            color: #fff;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.8);
+            border-radius: 8px;
+            border: 4px solid #3e2723;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background: #111;
+        }
+        /* Interfaz de usuario retro */
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-size: 10px;
+            text-shadow: 2px 2px #000;
+        }
+        .hud-item {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 2px solid #5d4037;
+        }
+        #cotton-health-bar {
+            width: 150px;
+            height: 12px;
+            background: #555;
+            border: 2px solid #000;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        #cotton-health-fill {
+            width: 100%;
+            height: 100%;
+            background: #ff80ab;
+            transition: width 0.1s ease;
+        }
+        /* Controles táctiles para dispositivos móviles (o pruebas) */
+        #mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            justify-content: space-between;
+        }
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #fff;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50%;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        /* Instrucciones flotantes */
+        #instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 9px;
+            text-align: center;
+            border: 1px solid #ff80ab;
+        }
+        /* Pantallas de estado (GameOver, Win, Inicio) */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+            z-index: 10;
+        }
+        .screen h1 {
+            color: #ffb74d;
+            font-size: 20px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .screen p {
+            font-size: 10px;
+            color: #ccc;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            max-width: 600px;
+        }
+        .screen button {
+            font-family: 'Press Start 2P', monospace;
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            border-bottom: 5px solid #2e7d32;
+        }
+        .screen button:active {
+            transform: translateY(3px);
+            border-bottom-width: 2px;
+        }
+        .cotton-color {
+            color: #ff80ab !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Canvas de Juego -->
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+
+        <!-- HUD (Interfaz de usuario) -->
+        <div id="hud">
+            <div>
+                <div class="hud-item">TESOROS: <span id="score-val">0</span></div>
+                <div class="hud-item" style="margin-top: 5px;">NIVEL: <span id="level-val">1/4</span></div>
+            </div>
+            <div id="cotton-health-container" class="hud-item" style="display: none;">
+                ALGODÓN: <div id="cotton-health-bar"><div id="cotton-health-fill"></div></div>
+            </div>
+            <div class="hud-item" id="phase-val">¡BUSCA EL ALGODÓN!</div>
+        </div>
+
+        <!-- Instrucciones en pantalla -->
+        <div id="instructions">Usa [A][D] o [Flechas] para moverte | [W], [Espacio] o [Flecha Arriba] para Saltar</div>
+
+        <!-- Pantalla de Inicio -->
+        <div id="start-screen" class="screen">
+            <h1>LA AVENTURA DEL MAPACHE</h1>
+            <p>¡Ayuda al mapache a conseguir su tesoro más preciado: un <span class="cotton-color">Algodón de Azúcar</span>!<br><br>
+               <strong>Fase 1:</strong> Avanza por los 4 niveles buscando comida y cosas brillantes hasta el puesto de la feria.<br>
+               <strong>Fase 2:</strong> ¡Lleva el algodón amarrado de regreso a tu madriguera! Pero ten cuidado... la lluvia y los charcos derretirán tu algodón si te mojas.
+            </p>
+            <button onclick="startGame()">¡JUGAR!</button>
+        </div>
+
+        <!-- Pantalla de Fin de Juego (Derrota) -->
+        <div id="gameover-screen" class="screen" style="display: none;">
+            <h1 id="fail-title">¡OH NO!</h1>
+            <p id="fail-reason">Tu algodón de azúcar se mojó por completo y desapareció...</p>
+            <button onclick="restartGame()">REINTENTAR</button>
+        </div>
+
+        <!-- Pantalla de Victoria -->
+        <div id="win-screen" class="screen" style="display: none;">
+            <h1>¡VICTORIA ABSOLUTA! 🎉</h1>
+            <p>Lograste traer el <span class="cotton-color">Algodón de Azúcar</span> intacto a tu madriguera.<br>¡El mapache es el más feliz del bosque!<br><br>
+               <strong>Tesoros recolectados:</strong> <span id="final-score" style="color: #ffd54f;">0</span>
+            </p>
+            <button onclick="restartGame()">¿JUGAR DE NUEVO?</button>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- AUDIO SINTETIZADO (Web Audio API) ---
+// Genera sonidos retro arcade sin archivos externos
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'jump') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        } else if (type === 'coin') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, now); // C5
+            osc.frequency.setValueAtTime(880, now + 0.08); // A5
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'splash') {
+            // Sonido de agua / quemadura
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'cotton_get') {
+            // Fanfarria corta
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(554, now + 0.1);
+            osc.frequency.setValueAtTime(659, now + 0.2);
+            osc.frequency.setValueAtTime(880, now + 0.3);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            osc.start(now);
+            osc.stop(now + 0.5);
+        } else if (type === 'win') {
+            // Fanfarria de victoria
+            osc.type = 'triangle';
+            const notes = [523, 659, 783, 1046];
+            notes.forEach((freq, i) => {
+                const noteOsc = audioCtx.createOscillator();
+                const noteGain = audioCtx.createGain();
+                noteOsc.connect(noteGain);
+                noteGain.connect(audioCtx.destination);
+                noteOsc.frequency.setValueAtTime(freq, now + i * 0.12);
+                noteGain.gain.setValueAtTime(0.15, now + i * 0.12);
+                noteGain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.4);
+                noteOsc.start(now + i * 0.12);
+                noteOsc.stop(now + i * 0.12 + 0.4);
+            });
+        }
+    } catch (e) {
+        console.log("Audio error", e);
+    }
+}
+
+// --- VARIABLES DEL JUEGO ---
+let score = 0;
+let currentLevel = 1;
+let phase = 1; // 1 = Buscando Algodón (Ida), 2 = Regresando a Madriguera (Vuelta)
+let gameActive = false;
+
+// Estado del algodón
+let cottonHealth = 100;
+let hasCottonCandy = false;
+
+// Configuración de físicas
+const gravity = 0.5;
+const friction = 0.82;
+
+// Teclas presionadas
+const keys = {};
+
+// Jugador (Mapache)
+const player = {
+    x: 100,
+    y: 300,
+    width: 48,
+    height: 32,
+    speed: 5.5,
+    xVel: 0,
+    yVel: 0,
+    jumping: false,
+    grounded: false,
+    facing: 'right',
+    animFrame: 0,
+    animTimer: 0
+};
+
+// Cámara para seguir al jugador
+const camera = {
+    x: 0,
+    y: 0,
+    width: canvas.width,
+    height: canvas.height,
+    worldWidth: 1600 // Los niveles son el doble de anchos que la pantalla
+};
+
+// Estructura de los Niveles
+let platforms = [];
+let items = [];
+let hazards = []; // Charcos y Chorros de agua
+let particles = []; // Gotas de agua y brillo de recolección
+
+// --- GENERADOR DE NIVELES ---
+function loadLevel(num, directionPhase) {
+    platforms = [];
+    items = [];
+    hazards = [];
+    particles = [];
+
+    // Definición de colores de los niveles
+    let theme = {
+        sky: '#2c3e50',
+        ground: '#27ae60',
+        dirt: '#8d6e63',
+        plat: '#f1c40f'
+    };
+
+    if (num === 1) {
+        // Nivel 1: El Bosque de la Madriguera
+        theme.sky = '#1c2833';
+        theme.ground = '#27ae60';
+        theme.plat = '#2ecc71';
+    } else if (num === 2) {
+        // Nivel 2: Los Suburbios / Calles
+        theme.sky = '#1b2631';
+        theme.ground = '#7f8c8d';
+        theme.plat = '#95a5a6';
+    } else if (num === 3) {
+        // Nivel 3: Entrada a la Feria
+        theme.sky = '#212f3d';
+        theme.ground = '#9b59b6';
+        theme.plat = '#af7ac5';
+    } else if (num === 4) {
+        // Nivel 4: El Puesto de Algodón
+        theme.sky = '#2c3e50';
+        theme.ground = '#e67e22';
+        theme.plat = '#f39c12';
+    }
+
+    // Guardar colores actuales
+    currentTheme = theme;
+
+    // --- Plataformas Base (Comunes en ambas fases) ---
+    // Suelo continuo
+    platforms.push({ x: 0, y: 410, width: 1600, height: 40, color: theme.ground });
+
+    // Plataformas flotantes según nivel
+    if (num === 1) {
+        platforms.push({ x: 250, y: 310, width: 150, height: 15, color: theme.plat });
+        platforms.push({ x: 480, y: 220, width: 120, height: 15, color: theme.plat });
+        platforms.push({ x: 700, y: 150, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 950, y: 240, width: 150, height: 15, color: theme.plat });
+        platforms.push({ x: 1200, y: 320, width: 200, height: 15, color: theme.plat });
+    } 
+    else if (num === 2) {
+        platforms.push({ x: 180, y: 300, width: 120, height: 15, color: theme.plat });
+        platforms.push({ x: 350, y: 200, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 600, y: 130, width: 150, height: 15, color: theme.plat });
+        platforms.push({ x: 800, y: 250, width: 100, height: 15, color: theme.plat });
+        platforms.push({ x: 1000, y: 310, width: 150, height: 15, color: theme.plat });
+        platforms.push({ x: 1250, y: 210, width: 180, height: 15, color: theme.plat });
+    }
+    else if (num === 3) {
+        platforms.push({ x: 150, y: 330, width: 100, height: 15, color: theme.plat });
+        platforms.push({ x: 300, y: 240, width: 150, height: 15, color: theme.plat });
+        platforms.push({ x: 550, y: 160, width: 120, height: 15, color: theme.plat });
+        platforms.push({ x: 750, y: 250, width: 200, height: 15, color: theme.plat });
+        platforms.push({ x: 1050, y: 180, width: 130, height: 15, color: theme.plat });
+        platforms.push({ x: 1250, y: 290, width: 160, height: 15, color: theme.plat });
+    }
+    else if (num === 4) {
+        platforms.push({ x: 200, y: 300, width: 150, height: 15, color: theme.plat });
+        platforms.push({ x: 450, y: 210, width: 200, height: 15, color: theme.plat });
+        platforms.push({ x: 750, y: 140, width: 120, height: 15, color: theme.plat });
+        platforms.push({ x: 950, y: 230, width: 150, height: 15, color: theme.plat });
+        platforms.push({ x: 1200, y: 310, width: 150, height: 15, color: theme.plat });
+    }
+
+    // --- Objetos Coleccionables (Comida y Brillos) ---
+    // Solo aparecen si es Fase 1, o si los estamos recreando para que el mundo no se vea vacío
+    const addFood = (x, y, points, type) => {
+        items.push({ x, y, width: 24, height: 24, points, type, collected: false });
+    };
+
+    if (num === 1) {
+        addFood(300, 270, 10, 'donut');
+        addFood(530, 180, 15, 'gem');
+        addFood(780, 110, 10, 'apple');
+        addFood(1000, 200, 15, 'gem');
+        addFood(1300, 280, 10, 'bread');
+    } else if (num === 2) {
+        addFood(240, 260, 10, 'pizza');
+        addFood(440, 160, 15, 'gem');
+        addFood(680, 90, 15, 'gem');
+        addFood(850, 210, 10, 'donut');
+        addFood(1350, 170, 10, 'pizza');
+    } else if (num === 3) {
+        addFood(200, 290, 10, 'apple');
+        addFood(370, 200, 15, 'gem');
+        addFood(600, 120, 10, 'donut');
+        addFood(850, 210, 15, 'gem');
+        addFood(1100, 140, 10, 'bread');
+    } else if (num === 4) {
+        addFood(270, 260, 10, 'donut');
+        addFood(550, 170, 15, 'gem');
+        addFood(810, 100, 10, 'pizza');
+        addFood(1020, 190, 15, 'gem');
+    }
+
+    // --- PUESTO DE ALGODÓN / MADRIGUERA ---
+    if (num === 4 && directionPhase === 1) {
+        // En el nivel 4 (Ida), colocamos el algodón de azúcar al final
+        items.push({
+            x: 1450,
+            y: 350,
+            width: 40,
+            height: 60,
+            type: 'cotton_candy',
+            collected: false
+        });
+    }
+
+    // --- OBSTÁCULOS DE AGUA (SOLO EN FASE 2 - REGRESO) ---
+    if (directionPhase === 2) {
+        // Agregar Charcos de Agua en el suelo (Zonas Azules)
+        // Si el mapache los toca mientras corre por el suelo, le daña el algodón
+        if (num === 1) {
+            hazards.push({ type: 'puddle', x: 400, y: 395, width: 120, height: 15 });
+            hazards.push({ type: 'puddle', x: 1050, y: 395, width: 150, height: 15 });
+        } 
+        else if (num === 2) {
+            hazards.push({ type: 'puddle', x: 500, y: 395, width: 160, height: 15 });
+            hazards.push({ type: 'puddle', x: 900, y: 395, width: 100, height: 15 });
+        } 
+        else if (num === 3) {
+            hazards.push({ type: 'puddle', x: 300, y: 395, width: 130, height: 15 });
+            hazards.push({ type: 'puddle', x: 1100, y: 395, width: 180, height: 15 });
+        } 
+        else if (num === 4) {
+            hazards.push({ type: 'puddle', x: 600, y: 395, width: 150, height: 15 });
+        }
+
+        // Agregar Chorros de Agua (Goteras en el techo/plataformas)
+        // Disparan gotitas de agua de forma periódica
+        const addSpout = (x, y, dir, interval) => {
+            hazards.push({
+                type: 'spout',
+                x,
+                y,
+                dir, // 'down', 'left', 'right'
+                interval,
+                timer: Math.random() * interval // Desfase inicial para que no disparen juntos
+            });
+        };
+
+        if (num === 1) {
+            addSpout(540, 220, 'down', 60);
+            addSpout(780, 150, 'down', 80);
+            addSpout(1000, 240, 'down', 70);
+        } else if (num === 2) {
+            addSpout(240, 300, 'down', 50);
+            addSpout(440, 200, 'down', 45);
+            addSpout(680, 130, 'down', 60);
+            addSpout(1100, 310, 'down', 50);
+        } else if (num === 3) {
+            addSpout(380, 240, 'down', 40);
+            addSpout(610, 160, 'down', 50);
+            addSpout(850, 250, 'down', 45);
+            addSpout(1100, 180, 'down', 40);
+        } else if (num === 4) {
+            addSpout(270, 300, 'down', 40);
+            addSpout(550, 210, 'down', 45);
+            addSpout(1020, 230, 'down', 50);
+        }
+    }
+}
+
+let currentTheme = { sky: '#1c2833', ground: '#27ae60', dirt: '#8d6e63', plat: '#2ecc71' };
+
+// --- INICIO Y CONTROL DEL JUEGO ---
+function startGame() {
+    initAudio();
+    document.getElementById('start-screen').style.display = 'none';
+    score = 0;
+    currentLevel = 1;
+    phase = 1;
+    hasCottonCandy = false;
+    cottonHealth = 100;
+    
+    // Configurar HUD
+    document.getElementById('score-val').innerText = score;
+    document.getElementById('level-val').innerText = `${currentLevel}/4`;
+    document.getElementById('phase-val').innerText = "¡BUSCA EL ALGODÓN!";
+    document.getElementById('phase-val').style.color = "#ffb74d";
+    document.getElementById('cotton-health-container').style.display = "none";
+
+    player.x = 100;
+    player.y = 300;
+    player.xVel = 0;
+    player.yVel = 0;
+
+    loadLevel(currentLevel, phase);
+    gameActive = true;
+}
+
+function restartGame() {
+    document.getElementById('gameover-screen').style.display = 'none';
+    document.getElementById('win-screen').style.display = 'none';
+    startGame();
+}
+
+function failGame(reason) {
+    gameActive = false;
+    playSound('splash');
+    document.getElementById('gameover-screen').style.display = 'flex';
+    document.getElementById('fail-reason').innerText = reason;
+}
+
+function winGame() {
+    gameActive = false;
+    playSound('win');
+    document.getElementById('win-screen').style.display = 'flex';
+    document.getElementById('final-score').innerText = score;
+}
+
+// Escuchar teclado
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['Space', 'ArrowUp', 'KeyW'].includes(e.code) && gameActive) {
+        e.preventDefault(); // Evita scroll de pantalla con espacio
+    }
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// --- BUCLE PRINCIPAL DE FÍSICA Y LÓGICA ---
+function update() {
+    if (!gameActive) return;
+
+    // 1. Movimiento del Jugador
+    if (keys['ArrowRight'] || keys['KeyD']) {
+        if (player.xVel < player.speed) player.xVel += 0.8;
+        player.facing = 'right';
+    }
+    if (keys['ArrowLeft'] || keys['KeyA']) {
+        if (player.xVel > -player.speed) player.xVel -= 0.8;
+        player.facing = 'left';
+    }
+
+    // Salto
+    if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !player.jumping && player.grounded) {
+        player.jumping = true;
+        player.grounded = false;
+        player.yVel = -player.speed * 2.2; // Fuerza de salto
+        playSound('jump');
+    }
+
+    // Aplicar gravedad y fricción
+    player.xVel *= friction;
+    player.yVel += gravity;
+
+    // Respaldar posición anterior para resolver colisiones
+    let oldX = player.x;
+    let oldY = player.y;
+
+    player.x += player.xVel;
+    player.y += player.yVel;
+
+    player.grounded = false;
+
+    // 2. Colisión con Plataformas
+    for (let plat of platforms) {
+        // AABB box collision
+        if (player.x < plat.x + plat.width &&
+            player.x + player.width > plat.x &&
+            player.y < plat.y + plat.height &&
+            player.y + player.height > plat.y) {
+
+            // Colisión desde arriba (aterrizar)
+            if (oldY + player.height <= plat.y && player.yVel >= 0) {
+                player.jumping = false;
+                player.grounded = true;
+                player.yVel = 0;
+                player.y = plat.y - player.height;
+            }
+            // Colisión desde abajo (cabeza)
+            else if (oldY >= plat.y + plat.height && player.yVel < 0) {
+                player.yVel = 0;
+                player.y = plat.y + plat.height;
+            }
+            // Colisión desde los lados
+            else if (oldX + player.width <= plat.x) {
+                player.x = plat.x - player.width;
+                player.xVel = 0;
+            }
+            else if (oldX >= plat.x + plat.width) {
+                player.x = plat.x + plat.width;
+                player.xVel = 0;
+            }
+        }
+    }
+
+    // Límite inferior (caída al vacío)
+    if (player.y > canvas.height + 50) {
+        if (phase === 1) {
+            // En fase 1 solo te penaliza reapareciendo al inicio del nivel
+            player.x = 100;
+            player.y = 300;
+            player.xVel = 0;
+            player.yVel = 0;
+        } else {
+            // En fase 2, caer al agua/vacío es perder el algodón inmediatamente
+            failGame("¡Te caíste al agua y tu algodón de azúcar se disolvió!");
+        }
+    }
+
+    // 3. Colisión con Coleccionables
+    for (let item of items) {
+        if (!item.collected &&
+            player.x < item.x + item.width &&
+            player.x + player.width > item.x &&
+            player.y < item.y + item.height &&
+            player.y + player.height > item.y) {
+
+            item.collected = true;
+
+            if (item.type === 'cotton_candy') {
+                // ¡Conseguiste el algodón!
+                hasCottonCandy = true;
+                phase = 2; // Iniciamos regreso
+                playSound('cotton_get');
+                
+                // Efecto visual de brillos
+                for (let i = 0; i < 20; i++) {
+                    particles.push({
+                        x: item.x + item.width/2,
+                        y: item.y + item.height/2,
+                        xVel: (Math.random() - 0.5) * 8,
+                        yVel: (Math.random() - 0.5) * 8,
+                        color: '#ff80ab',
+                        size: Math.random() * 6 + 2,
+                        life: 40
+                    });
+                }
+
+                // Ajustar HUD para el Regreso
+                document.getElementById('cotton-health-container').style.display = "inline-block";
+                document.getElementById('phase-val').innerText = "¡REGRESA A SALVO!";
+                document.getElementById('phase-val').style.color = "#ff80ab";
+            } else {
+                // Alimento o Gema
+                score += item.points;
+                document.getElementById('score-val').innerText = score;
+                playSound('coin');
+
+                // Partículas de recolección
+                for (let i = 0; i < 8; i++) {
+                    particles.push({
+                        x: item.x + item.width/2,
+                        y: item.y + item.height/2,
+                        xVel: (Math.random() - 0.5) * 4,
+                        yVel: (Math.random() - 0.5) * 4,
+                        color: '#ffd54f',
+                        size: Math.random() * 4 + 1,
+                        life: 25
+                    });
+                }
+            }
+        }
+    }
+
+    // 4. Mecánica de Límites de Nivel y Transición
+    if (phase === 1) {
+        // En Fase 1 (Ida), vas de Izquierda -> Derecha
+        if (player.x < 10) player.x = 10;
+        
+        if (player.x > camera.worldWidth - player.width - 10) {
+            if (currentLevel < 4) {
+                currentLevel++;
+                document.getElementById('level-val').innerText = `${currentLevel}/4`;
+                player.x = 50; // Reaparece al inicio a la izquierda
+                loadLevel(currentLevel, phase);
+            } else {
+                // Límite en nivel 4
+                player.x = camera.worldWidth - player.width - 10;
+            }
+        }
+    } else {
+        // En Fase 2 (Regreso con Algodón), vas de Derecha -> Izquierda
+        if (player.x > camera.worldWidth - player.width - 10) {
+            player.x = camera.worldWidth - player.width - 10;
+        }
+
+        if (player.x < 10) {
+            if (currentLevel > 1) {
+                currentLevel--;
+                document.getElementById('level-val').innerText = `${currentLevel}/4`;
+                player.x = camera.worldWidth - player.width - 60; // Reaparece al final a la derecha
+                loadLevel(currentLevel, phase);
+            } else {
+                // Llegamos al Nivel 1 y tocamos el extremo izquierdo (La Madriguera)
+                winGame();
+            }
+        }
+    }
+
+    // 5. Gestión de Peligros de Agua (Fase 2)
+    if (phase === 2) {
+        for (let haz of hazards) {
+            // Colisión con Charcos (Puddles) en el suelo
+            if (haz.type === 'puddle') {
+                if (player.x < haz.x + haz.width &&
+                    player.x + player.width > haz.x &&
+                    player.y + player.height >= haz.y) {
+                    
+                    // El mapache está pisando agua, se daña el algodón por la humedad que sube
+                    cottonHealth -= 0.6; 
+                    updateCottonUI();
+                    
+                    // Salpicar gotitas de agua al pisar
+                    if (Math.random() < 0.3 && Math.abs(player.xVel) > 1) {
+                        particles.push({
+                            x: player.x + player.width/2,
+                            y: player.y + player.height,
+                            xVel: (Math.random() - 0.5) * 4,
+                            yVel: -Math.random() * 3 - 1,
+                            color: '#4fc3f7',
+                            size: Math.random() * 3 + 1,
+                            life: 15
+                        });
+                    }
+                }
+            }
+
+            // Actualizar Chorros de Agua y disparar gotitas
+            if (haz.type === 'spout') {
+                haz.timer += 1;
+                if (haz.timer >= haz.interval) {
+                    haz.timer = 0;
+                    // Disparar gota de agua física
+                    let yVel = 0;
+                    let xVel = 0;
+                    if (haz.dir === 'down') yVel = 4;
+                    
+                    particles.push({
+                        x: haz.x,
+                        y: haz.y,
+                        xVel: xVel,
+                        yVel: yVel,
+                        color: '#00b0ff',
+                        size: 6,
+                        isWaterDrop: true,
+                        life: 120
+                    });
+                }
+            }
+        }
+    }
+
+    // 6. Actualizar Partículas Física y Colisiones
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.xVel;
+        p.y += p.yVel;
+        p.life--;
+
+        // Si es una gota de agua letal, comprobar colisión con el algodón de azúcar en la espalda
+        if (p.isWaterDrop && phase === 2) {
+            // El algodón está en la parte trasera del mapache
+            let cottonBox = {
+                x: player.facing === 'right' ? player.x - 5 : player.x + player.width - 15,
+                y: player.y - 15,
+                width: 25,
+                height: 25
+            };
+
+            if (p.x > cottonBox.x && p.x < cottonBox.x + cottonBox.width &&
+                p.y > cottonBox.y && p.y < cottonBox.y + cottonBox.height) {
+                
+                // ¡Gota dio en el blanco!
+                cottonHealth -= 10; // Daño fuerte
+                updateCottonUI();
+                playSound('splash');
+                p.life = 0; // Destruir gota
+
+                // Efecto de chispa húmeda
+                for (let k = 0; k < 6; k++) {
+                    particles.push({
+                        x: p.x,
+                        y: p.y,
+                        xVel: (Math.random() - 0.5) * 3,
+                        yVel: (Math.random() - 0.5) * 3,
+                        color: '#ff80ab',
+                        size: 2,
+                        life: 10
+                    });
+                }
+            }
+
+            // Colisión de gota de agua con plataformas normales
+            for (let plat of platforms) {
+                if (p.x > plat.x && p.x < plat.x + plat.width &&
+                    p.y > plat.y && p.y < plat.y + plat.height) {
+                    p.life = 0; // Desaparece al tocar suelo
+                }
+            }
+        }
+
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+
+    // 7. Movimiento de la Cámara (Suave)
+    let targetCamX = player.x - camera.width / 2;
+    if (targetCamX < 0) targetCamX = 0;
+    if (targetCamX > camera.worldWidth - camera.width) targetCamX = camera.worldWidth - camera.width;
+    camera.x += (targetCamX - camera.x) * 0.1; // Interpolación suave
+
+    // Animación del Mapache
+    player.animTimer++;
+    if (player.animTimer > 10) {
+        player.animTimer = 0;
+        player.animFrame = (player.animFrame + 1) % 4;
+    }
+}
+
+function updateCottonUI() {
+    if (cottonHealth < 0) cottonHealth = 0;
+    document.getElementById('cotton-health-fill').style.width = `${cottonHealth}%`;
+    
+    // Si la salud llega a 0, Game Over
+    if (cottonHealth <= 0) {
+        failGame("¡Tu algodón de azúcar se derritió por completo!");
+    }
+}
+
+// --- ARTE EN CANVAS (DIBUJADO DIRECTO) ---
+function draw() {
+    // Limpiar pantalla con cielo según el nivel
+    ctx.fillStyle = currentTheme.sky;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    // Desplazar todo según la cámara
+    ctx.translate(-camera.x, -camera.y);
+
+    // Dibujar elementos estéticos de fondo (Madriguera / Puesto de feria)
+    drawBackgroundScenery();
+
+    // Dibujar plataformas flotantes
+    for (let plat of platforms) {
+        ctx.fillStyle = plat.color;
+        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+        
+        // Borde superior decorativo
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(plat.x, plat.y, plat.width, 3);
+    }
+
+    // Dibujar Charcos de Agua (Peligrosos en Fase 2)
+    for (let haz of hazards) {
+        if (haz.type === 'puddle') {
+            ctx.fillStyle = '#0288d1';
+            ctx.fillRect(haz.x, haz.y, haz.width, haz.height);
+            
+            // Reflejos del agua
+            ctx.fillStyle = '#b3e5fc';
+            ctx.fillRect(haz.x + 20, haz.y + 4, haz.width - 40, 3);
+        }
+    }
+
+    // Dibujar Chorros / Goteras de agua
+    for (let haz of hazards) {
+        if (haz.type === 'spout') {
+            // Tubo de salida
+            ctx.fillStyle = '#78909c';
+            ctx.fillRect(haz.x - 8, haz.y, 16, 12);
+            ctx.fillStyle = '#cfd8dc';
+            ctx.fillRect(haz.x - 10, haz.y + 10, 20, 4);
+        }
+    }
+
+    // Dibujar Coleccionables (Comida y Tesoros)
+    for (let item of items) {
+        if (!item.collected) {
+            drawItem(item);
+        }
+    }
+
+    // Dibujar Partículas
+    for (let p of particles) {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Dibujar al Jugador (MAPACHE)
+    drawPlayer();
+
+    ctx.restore();
+}
+
+function drawBackgroundScenery() {
+    // Dibujar árboles si estamos en nivel 1
+    if (currentLevel === 1) {
+        // Madriguera de inicio a la izquierda
+        ctx.fillStyle = '#5d4037';
+        ctx.beginPath();
+        ctx.arc(100, 395, 35, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = '#2d1500';
+        ctx.beginPath();
+        ctx.arc(100, 395, 20, Math.PI, 0);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.fillText("MADRIGUERA", 45, 345);
+
+        // Árboles en el fondo
+        for (let x = 300; x < 1500; x += 300) {
+            ctx.fillStyle = '#3e2723';
+            ctx.fillRect(x, 310, 20, 100);
+            ctx.fillStyle = '#1b5e20';
+            ctx.beginPath();
+            ctx.arc(x + 10, 290, 45, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Dibujar luces de feria si estamos en nivel 3 y 4
+    if (currentLevel === 3 || currentLevel === 4) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 50);
+        ctx.lineTo(1600, 50);
+        ctx.stroke();
+
+        // Bombillas de colores intermitentes
+        let timeOffset = Math.floor(Date.now() / 250) % 3;
+        for (let x = 50; x < 1600; x += 80) {
+            let color = '#f1c40f'; // amarillo
+            if ((x / 80) % 3 === timeOffset) color = '#e74c3c'; // rojo
+            else if ((x / 80 + 1) % 3 === timeOffset) color = '#3498db'; // azul
+            
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, 55, 6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Dibujar el Puesto de Algodón al final del nivel 4
+    if (currentLevel === 4) {
+        ctx.fillStyle = '#e74c3c';
+        // Estructura de tienda
+        ctx.fillRect(1400, 270, 140, 140);
+        ctx.fillStyle = '#fff';
+        // Rayas de la carpa
+        ctx.fillRect(1400, 270, 20, 140);
+        ctx.fillRect(1440, 270, 20, 140);
+        ctx.fillRect(1480, 270, 20, 140);
+        ctx.fillRect(1520, 270, 20, 140);
+
+        // Techo de la carpa
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        ctx.moveTo(1380, 270);
+        ctx.lineTo(1470, 210);
+        ctx.lineTo(1560, 270);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#000';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.fillText("FERIA", 1445, 300);
+    }
+}
+
+function drawItem(item) {
+    ctx.save();
+    // Pequeño movimiento flotante para los objetos
+    let floatY = Math.sin((Date.now() / 200) + item.x) * 4;
+    ctx.translate(item.x, item.y + floatY);
+
+    if (item.type === 'gem') {
+        // Gema brillante (rombo)
+        ctx.fillStyle = '#29b6f6';
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(24, 12);
+        ctx.lineTo(12, 24);
+        ctx.lineTo(0, 12);
+        ctx.closePath();
+        ctx.fill();
+        // Brillo blanco
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(6, 6, 4, 4);
+    } else if (item.type === 'donut') {
+        // Dona rosa
+        ctx.fillStyle = '#e91e63';
+        ctx.beginPath();
+        ctx.arc(12, 12, 10, 0, Math.PI * 2);
+        ctx.fill();
+        // Centro de la dona
+        ctx.fillStyle = currentTheme.sky;
+        ctx.beginPath();
+        ctx.arc(12, 12, 4, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (item.type === 'apple') {
+        // Manzana roja
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath();
+        ctx.arc(12, 14, 9, 0, Math.PI * 2);
+        ctx.fill();
+        // Tallo verde
+        ctx.fillStyle = '#4caf50';
+        ctx.fillRect(11, 2, 2, 4);
+    } else if (item.type === 'pizza') {
+        // Rebanada de pizza
+        ctx.fillStyle = '#ffb300';
+        ctx.beginPath();
+        ctx.moveTo(12, 24);
+        ctx.lineTo(2, 4);
+        ctx.lineTo(22, 4);
+        ctx.closePath();
+        ctx.fill();
+        // Pepperoni rojo
+        ctx.fillStyle = '#d32f2f';
+        ctx.beginPath();
+        ctx.arc(12, 10, 3, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (item.type === 'bread') {
+        // Pan
+        ctx.fillStyle = '#ffe082';
+        ctx.fillRect(2, 6, 20, 12);
+        ctx.fillStyle = '#ffb300';
+        ctx.fillRect(5, 9, 3, 6);
+        ctx.fillRect(11, 9, 3, 6);
+        ctx.fillRect(17, 9, 3, 6);
+    } else if (item.type === 'cotton_candy') {
+        // Gran algodón de azúcar flotante al final del juego
+        ctx.fillStyle = '#ff80ab'; // Algodón rosa
+        ctx.beginPath();
+        ctx.arc(20, 20, 18, 0, Math.PI * 2);
+        ctx.arc(10, 25, 14, 0, Math.PI * 2);
+        ctx.arc(30, 25, 14, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Palito blanco de madera
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(18, 35, 4, 25);
+    }
+    ctx.restore();
+}
+
+function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+
+    // Si mira hacia la izquierda, invertimos el eje X para el dibujo
+    if (player.facing === 'left') {
+        ctx.translate(player.width, 0);
+        ctx.scale(-1, 1);
+    }
+
+    // --- DIBUJADO DEL MAPACHE CON CANVA GRÁFICOS (Retro Pixel-Art Style) ---
+    // 1. Cola de rayas (Gris y Negra)
+    ctx.fillStyle = '#424242'; // Gris oscuro
+    ctx.fillRect(-15, 15, 20, 12);
+    // Rayas negras de la cola
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-10, 15, 5, 12);
+    ctx.fillRect(0, 15, 5, 12);
+
+    // 2. Patitas delanteras y traseras (depende del ciclo de carrera)
+    ctx.fillStyle = '#212121'; // Negro/gris para patitas
+    let runOffset = (player.animFrame % 2 === 0) ? 3 : -3;
+    if (Math.abs(player.xVel) < 0.2) runOffset = 0; // Quieto
+
+    ctx.fillRect(8 + runOffset, 25, 6, 8);
+    ctx.fillRect(28 - runOffset, 25, 6, 8);
+
+    // 3. Cuerpo del Mapache (Gris)
+    ctx.fillStyle = '#9e9e9e'; 
+    ctx.fillRect(0, 6, 36, 20);
+
+    // 4. Cabeza (Gris)
+    ctx.fillRect(26, 0, 20, 18);
+
+    // Orejas
+    ctx.fillStyle = '#424242';
+    ctx.beginPath();
+    ctx.moveTo(28, 0);
+    ctx.lineTo(33, -6);
+    ctx.lineTo(38, 0);
+    ctx.closePath();
+    ctx.fill();
+    // Oreja interior rosa
+    ctx.fillStyle = '#ff8a80';
+    ctx.beginPath();
+    ctx.moveTo(31, 0);
+    ctx.lineTo(33, -3);
+    ctx.lineTo(35, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // 5. Máscara de Mapache (La marca negra de los ojos)
+    ctx.fillStyle = '#212121';
+    ctx.fillRect(34, 4, 12, 6);
+    // Ojito brillante
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(40, 5, 2, 2);
+
+    // Hocico negro
+    ctx.fillStyle = '#111';
+    ctx.fillRect(44, 10, 4, 4);
+
+    // 6. ALGODÓN DE AZÚCAR EN LA ESPALDA (SOLO FASE 2)
+    if (hasCottonCandy) {
+        // Dibujado del algodón rosa amarrado sobre el lomo
+        ctx.fillStyle = '#ff80ab'; // Rosa Algodón
+        
+        // Círculos superpuestos para hacerlo ver "esponjoso"
+        ctx.beginPath();
+        // Flota ligeramente hacia atrás
+        ctx.arc(10, -5, 15, 0, Math.PI*2);
+        ctx.arc(2, -2, 10, 0, Math.PI*2);
+        ctx.arc(18, -2, 11, 0, Math.PI*2);
+        ctx.fill();
+
+        // El palito del algodón sobresaliendo
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(10, 10);
+        ctx.lineTo(4, -18);
+        ctx.stroke();
+
+        // Brillo blanco del azúcar
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(12, -10, 3, 3);
+    }
+
+    ctx.restore();
+}
+
+// --- BUCLE PRINCIPAL DEL JUEGO (GAME LOOP) ---
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Iniciar bucle por defecto
+loop();
+</script>
+</body>
+</html>
