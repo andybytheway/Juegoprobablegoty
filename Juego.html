@@ -250,7 +250,7 @@ function startBgm() {
         
         let now = audioCtx.currentTime;
         
-        // Canal de Melodía (Square wave - Clásico retro de consola portátil)
+        // Canal de Melodía (Square wave - Clásico retro de GBA)
         let melNote = currentBgmPattern.melody[bgmStep % currentBgmPattern.melody.length];
         if (melNote > 0) {
             let osc = audioCtx.createOscillator();
@@ -260,14 +260,14 @@ function startBgm() {
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             
-            gain.gain.setValueAtTime(0.015, now);
+            gain.gain.setValueAtTime(0.24, now); // Súper nítido y balanceado
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
             
             osc.start(now);
             osc.stop(now + 0.15);
         }
         
-        // Canal de Bajo (Triangle wave - Soporte armónico sutil)
+        // Canal de Bajo (Triangle wave - Soporte armónico retro)
         let bassNote = currentBgmPattern.bass[bgmStep % currentBgmPattern.bass.length];
         if (bassNote > 0) {
             let oscB = audioCtx.createOscillator();
@@ -277,7 +277,7 @@ function startBgm() {
             oscB.connect(gainB);
             gainB.connect(audioCtx.destination);
             
-            gainB.gain.setValueAtTime(0.05, now);
+            gainB.gain.setValueAtTime(0.28, now); // Refuerzo de graves audible
             gainB.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
             
             oscB.start(now);
@@ -322,7 +322,7 @@ function playSound(type) {
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(140, now);
             osc.frequency.exponentialRampToValueAtTime(620, now + 0.12);
-            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.setValueAtTime(0.24, now); // Nivelado al mismo rango de la música
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
             osc.start(now);
             osc.stop(now + 0.12);
@@ -330,7 +330,7 @@ function playSound(type) {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(587, now);
             osc.frequency.setValueAtTime(987, now + 0.08);
-            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.setValueAtTime(0.20, now); 
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
             osc.start(now);
             osc.stop(now + 0.25);
@@ -338,7 +338,7 @@ function playSound(type) {
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(190, now);
             osc.frequency.linearRampToValueAtTime(30, now + 0.3);
-            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.setValueAtTime(0.30, now); 
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
             osc.start(now);
             osc.stop(now + 0.3);
@@ -348,7 +348,7 @@ function playSound(type) {
             osc.frequency.setValueAtTime(659, now + 0.1);
             osc.frequency.setValueAtTime(783, now + 0.2);
             osc.frequency.setValueAtTime(1046, now + 0.3);
-            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.setValueAtTime(0.24, now); 
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
             osc.start(now);
             osc.stop(now + 0.5);
@@ -356,7 +356,7 @@ function playSound(type) {
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(300, now);
             osc.frequency.exponentialRampToValueAtTime(90, now + 0.1);
-            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.setValueAtTime(0.24, now); 
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
             osc.start(now);
             osc.stop(now + 0.1);
@@ -364,7 +364,7 @@ function playSound(type) {
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(110, now);
             osc.frequency.setValueAtTime(60, now + 0.15);
-            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.setValueAtTime(0.32, now); 
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
             osc.start(now);
             osc.stop(now + 0.18);
@@ -377,7 +377,7 @@ function playSound(type) {
                 o.connect(g);
                 g.connect(audioCtx.destination);
                 o.frequency.setValueAtTime(freq, now + i * 0.08);
-                g.gain.setValueAtTime(0.12, now + i * 0.08);
+                g.gain.setValueAtTime(0.24, now + i * 0.08); 
                 g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.4);
                 o.start(now + i * 0.08);
                 o.stop(now + i * 0.08 + 0.4);
