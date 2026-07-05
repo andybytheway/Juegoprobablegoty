@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>La Gran Aventura del Mapache - GBA Edition</title>
+    <title>La Gran Aventura del Mapache - GBA Deluxe Edition</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -191,10 +191,121 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let audioCtx = null;
+let bgmIntervalId = null;
+let bgmStep = 0;
+let currentBgmPattern = { melody: [], bass: [], tempo: 150 };
+
+const bgmPatterns = {
+    lvl1: { // Bosque - Mayor, alegre y de exploración
+        melody: [60, 0, 64, 67, 60, 64, 67, 0, 62, 0, 65, 69, 67, 0, 0, 0],
+        bass: [36, 36, 40, 40, 36, 36, 40, 40, 38, 38, 41, 41, 43, 43, 43, 43],
+        tempo: 170
+    },
+    lvl2: { // Tuberías - Misterioso e industrial
+        melody: [57, 60, 64, 60, 57, 60, 64, 0, 58, 62, 65, 62, 55, 59, 62, 0],
+        bass: [33, 33, 33, 33, 33, 33, 33, 33, 34, 34, 34, 34, 31, 31, 31, 31],
+        tempo: 185
+    },
+    lvl3: { // Ciudad - Ritmo urbano sigiloso
+        melody: [57, 0, 60, 0, 62, 0, 64, 62, 57, 0, 60, 0, 65, 64, 62, 0],
+        bass: [33, 0, 33, 0, 36, 0, 38, 38, 33, 0, 33, 0, 38, 38, 36, 0],
+        tempo: 190
+    },
+    lvl4: { // Feria - Melodía alegre acelerada
+        melody: [60, 62, 64, 65, 67, 0, 67, 0, 65, 64, 62, 60, 59, 0, 59, 0],
+        bass: [36, 36, 40, 40, 43, 43, 43, 43, 41, 41, 38, 38, 35, 35, 35, 35],
+        tempo: 160
+    },
+    escape: { // Persecución - Cromática, rápida, de pánico
+        melody: [57, 58, 60, 58, 57, 58, 60, 0, 55, 56, 58, 56, 55, 56, 58, 0],
+        bass: [33, 33, 33, 33, 33, 33, 33, 33, 31, 31, 31, 31, 31, 31, 31, 31],
+        tempo: 130
+    }
+};
+
+function mToF(note) {
+    if (!note) return 0;
+    return 440 * Math.pow(2, (note - 69) / 12);
+}
 
 function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function startBgm() {
+    stopBgm();
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    bgmStep = 0;
+    updateBgmPattern();
+    
+    function tick() {
+        if (!gameActive || !audioCtx) return;
+        
+        let now = audioCtx.currentTime;
+        
+        // Canal de Melodía (Square wave - Clásico retro de consola portátil)
+        let melNote = currentBgmPattern.melody[bgmStep % currentBgmPattern.melody.length];
+        if (melNote > 0) {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(mToF(melNote), now);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            gain.gain.setValueAtTime(0.015, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            
+            osc.start(now);
+            osc.stop(now + 0.15);
+        }
+        
+        // Canal de Bajo (Triangle wave - Soporte armónico sutil)
+        let bassNote = currentBgmPattern.bass[bgmStep % currentBgmPattern.bass.length];
+        if (bassNote > 0) {
+            let oscB = audioCtx.createOscillator();
+            let gainB = audioCtx.createGain();
+            oscB.type = 'triangle';
+            oscB.frequency.setValueAtTime(mToF(bassNote), now);
+            oscB.connect(gainB);
+            gainB.connect(audioCtx.destination);
+            
+            gainB.gain.setValueAtTime(0.05, now);
+            gainB.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            
+            oscB.start(now);
+            oscB.stop(now + 0.2);
+        }
+        
+        bgmStep++;
+        bgmIntervalId = setTimeout(tick, currentBgmPattern.tempo);
+    }
+    
+    bgmIntervalId = setTimeout(tick, currentBgmPattern.tempo);
+}
+
+function stopBgm() {
+    if (bgmIntervalId) {
+        clearTimeout(bgmIntervalId);
+        bgmIntervalId = null;
+    }
+}
+
+function updateBgmPattern() {
+    if (phase === 2) {
+        currentBgmPattern = bgmPatterns.escape;
+    } else {
+        if (currentLevel === 1) currentBgmPattern = bgmPatterns.lvl1;
+        else if (currentLevel === 2) currentBgmPattern = bgmPatterns.lvl2;
+        else if (currentLevel === 3) currentBgmPattern = bgmPatterns.lvl3;
+        else if (currentLevel === 4) currentBgmPattern = bgmPatterns.lvl4;
     }
 }
 
@@ -278,9 +389,10 @@ function playSound(type) {
 }
 
 function createSvgUrl(markup) {
-    return 'data:image/svg+xml;utf8,' + encodeURIComponent(markup);
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup);
 }
 
+// Asset loader
 const assets = {
     raccoon_walk_0: new Image(),
     raccoon_walk_1: new Image(),
@@ -301,60 +413,47 @@ const assets = {
     storm_cloud: new Image()
 };
 
-// 🦝 DISEÑO EXACTO DEL MAPACHE (BÍPEDO, OREJAS AMARILLAS, CAPA VERDE, COLA GRUESA - DE "image_51017e.png" OPCIÓN B)
 assets.raccoon_walk_0.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
   <defs>
     <linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient>
     <linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient>
   </defs>
-  <!-- Cola esponjosa anillada -->
   <rect x="0" y="14" width="10" height="7" fill="#6d6d6d"/>
   <rect x="2" y="14" width="2" height="7" fill="#1c1c1c"/>
   <rect x="6" y="14" width="2" height="7" fill="#1c1c1c"/>
-  <!-- Patas bipedales quietas -->
   <rect x="11" y="27" width="3" height="4" fill="#1c1c1c"/>
   <rect x="17" y="27" width="3" height="4" fill="#1c1c1c"/>
-  <!-- Cuerpo bipedal -->
   <rect x="9" y="13" width="13" height="14" fill="url(#gFur)"/>
-  <rect x="12" y="18" width="7" height="9" fill="#eeeeee"/> <!-- Barriga blanca -->
-  <!-- Capa Verde Oscuro -->
+  <rect x="12" y="18" width="7" height="9" fill="#eeeeee"/>
   <rect x="8" y="11" width="15" height="7" fill="url(#gCloak)"/>
-  <circle cx="15" cy="12" r="1.5" fill="#ffd700"/> <!-- Broche dorado de la capa -->
-  <!-- Cabeza tierna -->
+  <circle cx="15" cy="12" r="1.5" fill="#ffd700"/>
   <rect x="10" y="2" width="14" height="10" fill="url(#gFur)"/>
-  <rect x="11" y="4" width="12" height="8" fill="#eeeeee"/> <!-- Mejillas blancas -->
-  <!-- Orejas con puntas amarillas/naranjas -->
+  <rect x="11" y="4" width="12" height="8" fill="#eeeeee"/>
   <rect x="11" y="0" width="3" height="3" fill="#6d6d6d"/>
   <rect x="12" y="1" width="1" height="1" fill="#ffa726"/>
   <rect x="20" y="0" width="3" height="3" fill="#6d6d6d"/>
   <rect x="21" y="1" width="1" height="1" fill="#ffa726"/>
-  <!-- Antifaz y Ojos con brillo amarillo -->
   <rect x="12" y="5" width="10" height="4" fill="#1c1c1c"/>
   <rect x="14" y="6" width="1" height="1" fill="#ffeb3b"/>
   <rect x="19" y="6" width="1" height="1" fill="#ffeb3b"/>
-  <!-- Nariz pequeña -->
   <rect x="16" y="8" width="2" height="1.5" fill="#000000"/>
-  <!-- Manitas -->
   <rect x="7" y="15" width="2" height="2" fill="#5c5c5c"/>
   <rect x="23" y="15" width="2" height="2" fill="#5c5c5c"/>
 </svg>`);
 
 assets.raccoon_walk_1.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
   <defs>
     <linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient>
     <linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient>
   </defs>
-  <!-- Cola ondeando por caminar -->
   <rect x="0" y="13" width="10" height="7" fill="#6d6d6d" transform="rotate(-5, 5, 16)"/>
   <rect x="2" y="13" width="2" height="7" fill="#1c1c1c" transform="rotate(-5, 5, 16)"/>
   <rect x="6" y="13" width="2" height="7" fill="#1c1c1c" transform="rotate(-5, 5, 16)"/>
-  <!-- Patas en ciclo de caminata de 32 bits -->
   <rect x="10" y="27" width="3" height="4" fill="#1c1c1c"/>
   <rect x="16" y="27" width="3" height="3" fill="#303030"/>
   <rect x="19" y="27" width="3" height="4" fill="#1c1c1c"/>
-  <!-- Cuerpo bipedal -->
   <rect x="9" y="13" width="13" height="14" fill="url(#gFur)"/>
   <rect x="12" y="18" width="7" height="9" fill="#eeeeee"/>
   <rect x="8" y="11" width="15" height="7" fill="url(#gCloak)"/>
@@ -374,22 +473,18 @@ assets.raccoon_walk_1.src = createSvgUrl(`
 </svg>`);
 
 assets.raccoon_jump.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
   <defs>
     <linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient>
     <linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient>
   </defs>
-  <!-- Cola levantada por salto -->
   <rect x="0" y="10" width="10" height="7" fill="#6d6d6d" transform="rotate(-25, 5, 12)"/>
   <rect x="2" y="10" width="2" height="7" fill="#1c1c1c" transform="rotate(-25, 5, 12)"/>
   <rect x="6" y="10" width="2" height="7" fill="#1c1c1c" transform="rotate(-25, 5, 12)"/>
-  <!-- Patitas encogidas -->
   <rect x="11" y="25" width="3" height="3" fill="#1c1c1c"/>
   <rect x="17" y="25" width="3" height="3" fill="#1c1c1c"/>
-  <!-- Cuerpo de salto -->
   <rect x="9" y="11" width="13" height="14" fill="url(#gFur)"/>
   <rect x="12" y="16" width="7" height="9" fill="#eeeeee"/>
-  <!-- Capa levantada al saltar -->
   <rect x="7" y="8" width="17" height="7" fill="url(#gCloak)" transform="rotate(-5, 15, 11)"/>
   <circle cx="15" cy="10" r="1.5" fill="#ffd700"/>
   <rect x="10" y="1" width="14" height="10" fill="url(#gFur)"/>
@@ -407,7 +502,7 @@ assets.raccoon_jump.src = createSvgUrl(`
 </svg>`);
 
 assets.raccoon_throw.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
   <defs>
     <linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient>
     <linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient>
@@ -426,31 +521,25 @@ assets.raccoon_throw.src = createSvgUrl(`
   <rect x="12" y="1" width="1" height="1" fill="#ffa726"/>
   <rect x="12" y="5" width="10" height="4" fill="#1c1c1c"/>
   <rect x="16" y="8" width="2" height="1.5" fill="#000000"/>
-  <!-- Manita arrojando estirada hacia adelante -->
   <rect x="24" y="13" width="6" height="3" fill="#5c5c5c"/>
 </svg>`);
 
 assets.raccoon_wet.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
   <defs>
     <linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#78909c"/><stop offset="100%" stop-color="#37474f"/></linearGradient>
   </defs>
-  <!-- Mapache triste / mojado desplomado -->
   <rect x="5" y="22" width="22" height="8" fill="url(#gFur)" rx="2"/>
   <rect x="8" y="14" width="16" height="10" fill="url(#gFur)"/>
-  <!-- Ojos llorosos / mareados en X -->
   <rect x="11" y="16" width="3" height="3" fill="#263238"/>
   <rect x="18" y="16" width="3" height="3" fill="#263238"/>
-  <!-- Gotas cayendo alrededor -->
   <rect x="4" y="10" width="2" height="5" fill="#00b0ff"/>
   <rect x="26" y="12" width="2" height="5" fill="#00b0ff"/>
-  <!-- Charco rosa derretido abajo -->
   <rect x="2" y="28" width="28" height="4" fill="#e91e63" opacity="0.8"/>
 </svg>`);
 
-// SVG: Dueño corriendo 0
 assets.owner_walk_0.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" width="32" height="48" shape-rendering="crispEdges">
   <rect x="8" y="0" width="16" height="8" fill="#ffffff"/>
   <rect x="6" y="4" width="20" height="4" fill="#eceff1"/>
   <rect x="10" y="8" width="12" height="10" fill="#ffcc99"/>
@@ -468,9 +557,8 @@ assets.owner_walk_0.src = createSvgUrl(`
   <rect x="17" y="42" width="6" height="4" fill="#3e2723"/>
 </svg>`);
 
-// SVG: Dueño corriendo 1
 assets.owner_walk_1.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" width="32" height="48" shape-rendering="crispEdges">
   <rect x="8" y="0" width="16" height="8" fill="#ffffff"/>
   <rect x="6" y="4" width="20" height="4" fill="#eceff1"/>
   <rect x="10" y="8" width="12" height="10" fill="#ffcc99"/>
@@ -487,12 +575,10 @@ assets.owner_walk_1.src = createSvgUrl(`
   <rect x="20" y="44" width="6" height="4" fill="#3e2723"/>
 </svg>`);
 
-// SVG: Dueño Saltando (Pose de Salto con Delantal ondeando)
 assets.owner_jump.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" width="32" height="48" shape-rendering="crispEdges">
   <rect x="8" y="-2" width="16" height="8" fill="#ffffff"/>
   <rect x="10" y="6" width="12" height="10" fill="#ffcc99"/>
-  <!-- Delantal inclinado por salto -->
   <rect x="4" y="16" width="22" height="20" fill="#ffffff" transform="skewX(-6)"/>
   <rect x="6" y="16" width="2" height="20" fill="#c62828" transform="skewX(-6)"/>
   <rect x="12" y="16" width="2" height="20" fill="#c62828" transform="skewX(-6)"/>
@@ -503,24 +589,20 @@ assets.owner_jump.src = createSvgUrl(`
   <rect x="19" y="40" width="5" height="4" fill="#3e2723"/>
 </svg>`);
 
-// SVG: Dueño Caído / Aturdido (¡Para la animación de Tropiezo!)
 assets.owner_trip.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" shape-rendering="crispEdges">
-  <!-- El vendedor tirado horizontalmente en el suelo -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32" shape-rendering="crispEdges">
   <rect x="14" y="10" width="22" height="12" fill="#ffffff"/>
   <rect x="16" y="10" width="2" height="12" fill="#c62828"/>
   <rect x="22" y="10" width="2" height="12" fill="#c62828"/>
   <rect x="6" y="8" width="10" height="10" fill="#ffcc99"/>
-  <!-- Sombrero de chef rodando -->
   <rect x="0" y="14" width="8" height="8" fill="#ffffff" rx="1"/>
   <rect x="36" y="12" width="10" height="5" fill="#1565c0"/>
   <rect x="34" y="21" width="3" height="4" fill="#ffcc99"/>
   <rect x="42" y="20" width="3" height="4" fill="#ffcc99"/>
 </svg>`);
 
-// SVG: Objetos y Elementos
 assets.cotton_candy.src = createSvgUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40" shape-rendering="crispEdges">
   <defs><radialGradient id="pC" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffb2dd"/><stop offset="60%" stop-color="#ff80ab"/><stop offset="100%" stop-color="#e040fb"/></radialGradient></defs>
   <rect x="6" y="4" width="20" height="24" fill="url(#pC)"/>
   <rect x="4" y="8" width="24" height="16" fill="url(#pC)"/>
@@ -528,13 +610,13 @@ assets.cotton_candy.src = createSvgUrl(`
   <rect x="15" y="26" width="2" height="14" fill="#ffe0b2"/>
 </svg>`);
 
-assets.donut.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="4" y="4" width="16" height="16" fill="#ff4081" rx="4"/><rect x="8" y="8" width="8" height="8" fill="#1c2833"/><rect x="6" y="6" width="2" height="2" fill="#00e5ff"/><rect x="16" y="6" width="2" height="2" fill="#ffeb3b"/></svg>`);
-assets.gem.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges"><path d="M12,2 L22,12 L12,22 L2,12 Z" fill="#29b6f6"/><rect x="9" y="9" width="4" height="4" fill="#ffffff"/></svg>`);
-assets.apple.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="6" y="6" width="12" height="14" fill="#e53935" rx="3"/><rect x="11" y="2" width="2" height="4" fill="#8d6e63"/></svg>`);
-assets.pizza.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges"><path d="M12,22 L2,2 L22,2 Z" fill="#ffd54f"/><rect x="2" y="2" width="20" height="3" fill="#a1887f"/></svg>`);
-assets.bread.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="2" y="6" width="20" height="12" fill="#ffe082" rx="3"/><rect x="5" y="9" width="3" height="6" fill="#ffb300"/></svg>`);
-assets.trash_can.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="4" y="4" width="16" height="16" fill="#78909c"/><rect x="2" y="2" width="20" height="3" fill="#cfd8dc"/></svg>`);
-assets.storm_cloud.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" shape-rendering="crispEdges"><rect x="10" y="10" width="140" height="30" fill="#455a64" rx="10"/><polygon points="60,20 54,34 64,34 58,46" fill="#ffeb3b"/></svg>`);
+assets.donut.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="4" y="4" width="16" height="16" fill="#ff4081" rx="4"/><rect x="8" y="8" width="8" height="8" fill="#1c2833"/><rect x="6" y="6" width="2" height="2" fill="#00e5ff"/><rect x="16" y="6" width="2" height="2" fill="#ffeb3b"/></svg>`);
+assets.gem.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><path d="M12,2 L22,12 L12,22 L2,12 Z" fill="#29b6f6"/><rect x="9" y="9" width="4" height="4" fill="#ffffff"/></svg>`);
+assets.apple.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="6" y="6" width="12" height="14" fill="#e53935" rx="3"/><rect x="11" y="2" width="2" height="4" fill="#8d6e63"/></svg>`);
+assets.pizza.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><path d="M12,22 L2,2 L22,2 Z" fill="#ffd54f"/><rect x="2" y="2" width="20" height="3" fill="#a1887f"/></svg>`);
+assets.bread.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="2" y="6" width="20" height="12" fill="#ffe082" rx="3"/><rect x="5" y="9" width="3" height="6" fill="#ffb300"/></svg>`);
+assets.trash_can.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="4" y="4" width="16" height="16" fill="#78909c"/><rect x="2" y="2" width="20" height="3" fill="#cfd8dc"/></svg>`);
+assets.storm_cloud.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50" shape-rendering="crispEdges"><rect x="10" y="10" width="140" height="30" fill="#455a64" rx="10"/><polygon points="60,20 54,34 64,34 58,46" fill="#ffeb3b"/></svg>`);
 
 // Variables del juego
 let score = 0;
@@ -609,7 +691,7 @@ let items = [];
 let hazards = []; 
 let particles = []; 
 let projectiles = []; 
-let transitions = []; // 🚪 PORTALES/TUBERÍAS DE TRANSICIÓN DE NIVELES
+let transitions = []; 
 
 let starBackground = [];
 let mountainBackground = [];
@@ -633,7 +715,6 @@ function initParallax() {
     }
 }
 
-// Cargar nivel y crear portales físicos
 function loadLevel(num, directionPhase) {
     platforms = [];
     items = [];
@@ -644,28 +725,26 @@ function loadLevel(num, directionPhase) {
 
     let theme = { sky: '#0c0b14', ground: '#2e7d32', plat: '#4caf50' };
 
-    // Estilos de niveles con el concepto de Terraria/Stray
     if (num === 1) {
-        theme.sky = '#0a101d'; // Bosque místico
+        theme.sky = '#0a101d'; 
         theme.ground = '#2e7d32'; 
         theme.plat = '#4caf50'; 
     } else if (num === 2) {
-        theme.sky = '#0d1117'; // Tuberías (Stray)
+        theme.sky = '#0d1117'; 
         theme.ground = '#37474f';
         theme.plat = '#546e7a';
     } else if (num === 3) {
-        theme.sky = '#0a0a0f'; // Ciudad nocturna
+        theme.sky = '#0a0a0f'; 
         theme.ground = '#212121';
         theme.plat = '#424242';
     } else if (num === 4) {
-        theme.sky = '#160a24'; // Feria animada
+        theme.sky = '#160a24'; 
         theme.ground = '#3e2723';
         theme.plat = '#a1887f';
     }
 
     currentTheme = theme;
 
-    // Colocar suelo de agua fatal en el regreso de la fase 2
     if (directionPhase === 2) {
         platforms.push({ x: 0, y: 410, width: 2400, height: 40, color: '#01579b', isWaterSurface: true });
         platforms.push({ x: 0, y: 310, width: 280, height: 100, color: theme.plat }); 
@@ -674,16 +753,15 @@ function loadLevel(num, directionPhase) {
         platforms.push({ x: 0, y: 410, width: 2400, height: 40, color: theme.ground });
     }
 
-    // Estructuras de plataformas orgánicas y retadoras
+    // Diseñando plataformas perfectamente balanceadas para que el salto no sea inalcanzable
     if (num === 1) {
-        // Altura bajada de 140 a 180 para que el mapache pueda saltar cómodamente de regreso
         platforms.push({ x: 250, y: 310, width: 220, height: 15, color: theme.plat });
         platforms.push({ x: 530, y: 220, width: 180, height: 15, color: theme.plat });
-        platforms.push({ x: 780, y: 180, width: 220, height: 15, color: theme.plat });
+        platforms.push({ x: 780, y: 180, width: 220, height: 15, color: theme.plat }); // Reducido de 140 a 180 para accesibilidad de salto
         platforms.push({ x: 1080, y: 230, width: 180, height: 15, color: theme.plat });
         platforms.push({ x: 1320, y: 310, width: 220, height: 15, color: theme.plat });
         platforms.push({ x: 1600, y: 220, width: 180, height: 15, color: theme.plat });
-        platforms.push({ x: 1850, y: 180, width: 220, height: 15, color: theme.plat });
+        platforms.push({ x: 1850, y: 180, width: 220, height: 15, color: theme.plat }); // Reducido de 140 a 180 para salto
         platforms.push({ x: 2120, y: 310, width: 280, height: 15, color: theme.plat });
     } else if (num === 2) {
         platforms.push({ x: 0, y: 310, width: 240, height: 15, color: theme.plat });
@@ -718,7 +796,6 @@ function loadLevel(num, directionPhase) {
         platforms.push({ x: 2210, y: 330, width: 190, height: 15, color: theme.plat });
     }
 
-    // 🚪 ENTRADAS Y SALIDAS FÍSICAS (PORTALES RETRO)
     if (num === 1) {
         transitions.push({ x: 2280, y: 210, width: 60, height: 100, type: 'tree_trunk', targetLevel: 2 });
     } else if (num === 2) {
@@ -731,7 +808,6 @@ function loadLevel(num, directionPhase) {
         transitions.push({ x: 20, y: 210, width: 60, height: 100, type: 'carnival_arch', targetLevel: 3 });
     }
 
-    // Colocar objetos coleccionables
     const addFood = (x, y, points, type) => {
         items.push({ x, y, width: 24, height: 24, points, type, collected: false });
     };
@@ -773,7 +849,6 @@ function loadLevel(num, directionPhase) {
         });
     }
 
-    // Goteras y charcos en regreso
     if (directionPhase === 2) {
         const addSpout = (x, y, interval) => {
             hazards.push({ type: 'spout', x, y, interval, timer: Math.random() * interval });
@@ -844,6 +919,7 @@ function startGame() {
 
     loadLevel(currentLevel, phase);
     gameActive = true;
+    startBgm();
 }
 
 function restartGame() {
@@ -854,6 +930,7 @@ function restartGame() {
 
 function failGame(reason) {
     gameActive = false;
+    stopBgm();
     playSound('splash');
     document.getElementById('gameover-screen').style.display = 'flex';
     document.getElementById('fail-reason').innerText = reason;
@@ -861,6 +938,7 @@ function failGame(reason) {
 
 function winGame() {
     gameActive = false;
+    stopBgm();
     playSound('win');
     document.getElementById('win-screen').style.display = 'flex';
     document.getElementById('final-score').innerText = score;
@@ -874,10 +952,19 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 
+function safeDrawImage(image, x, y, w, h) {
+    try {
+        if (image && image.complete && image.naturalWidth !== 0) {
+            ctx.drawImage(image, x, y, w, h);
+        }
+    } catch (e) {
+        console.warn("Falla controlada de dibujo de SVG:", e);
+    }
+}
+
 function update() {
     if (!gameActive) return;
 
-    // Animación Sad/Melt al perder algodón
     if (player.meltAnimTimer > 0) {
         player.meltAnimTimer--;
         if (player.meltAnimTimer === 0) {
@@ -886,7 +973,6 @@ function update() {
         return;
     }
 
-    // 1. Movimiento del Jugador
     if (keys['ArrowRight'] || keys['KeyD']) {
         if (player.xVel < player.speed) player.xVel += 0.82;
         player.facing = 'right';
@@ -903,7 +989,6 @@ function update() {
         playSound('jump');
     }
 
-    // Sistema de Lanzamiento de Basura
     if (player.throwCooldown > 0) {
         player.throwCooldown--;
     }
@@ -913,24 +998,23 @@ function update() {
     if ((keys['KeyJ'] || keys['KeyF']) && player.throwCooldown === 0) {
         throwTrash();
         player.throwCooldown = 35; 
-        player.throwAnimTimer = 12; // Duración de la animación de lanzamiento
+        player.throwAnimTimer = 12; 
     }
 
     player.xVel *= friction;
     player.yVel += gravity;
 
-    // Ventaja de 3 segundos para escapar
     if (ownerSpawnTimer > 0) {
         ownerSpawnTimer--;
         if (ownerSpawnTimer === 0) {
             owner.active = true;
             owner.x = Math.min(camera.worldWidth - 50, player.x + 380);
-            owner.y = 100; // Spawnea desde el aire de forma segura
+            owner.y = 200;
             owner.yVel = 0;
             owner.facing = 'left';
             owner.stunned = false;
             owner.stunTimer = 0;
-            ownerAlertTimer = 60; // 1 segundo exacto de pánico express
+            ownerAlertTimer = 60; 
             playSound('hit'); 
             document.getElementById('phase-val').innerText = "¡CORRE DEL DUEÑO!";
         }
@@ -948,7 +1032,6 @@ function update() {
 
     player.grounded = false;
 
-    // 2. Colisión del Mapache con Plataformas
     for (let plat of platforms) {
         if (player.x < plat.x + plat.width &&
             player.x + player.width > plat.x &&
@@ -957,7 +1040,7 @@ function update() {
 
             if (plat.isWaterSurface) {
                 cottonHealth = 0; 
-                player.meltAnimTimer = 90; // Activa animación de muerte triste
+                player.meltAnimTimer = 90; 
                 playSound('splash');
                 return;
             }
@@ -983,7 +1066,6 @@ function update() {
         }
     }
 
-    // Caída al vacío (Game Over de regreso)
     if (player.y > canvas.height + 50) {
         if (phase === 1) {
             player.x = 100;
@@ -995,43 +1077,43 @@ function update() {
         }
     }
 
-    // 🚪 DETECTAR ENTRADAS / PORTALES DE TRANSICIÓN FÍSICA
+    // 🚪 DETECTAR ENTRADAS / PORTALES DE TRANSICIÓN FÍSICA SEGUROS (player.y = 100)
     for (let gate of transitions) {
         if (player.x + player.width/2 > gate.x && player.x + player.width/2 < gate.x + gate.width &&
             player.y + player.height > gate.y && player.y < gate.y + gate.height) {
             
             if (phase === 1 && player.xVel > 1 && gate.targetLevel > currentLevel) {
-                // Avanzar de nivel físico - ¡Se solucionó la caída fijando player.y = 100!
                 currentLevel = gate.targetLevel;
                 document.getElementById('level-val').innerText = `${currentLevel}/4`;
                 player.x = 80;
-                player.y = 100;
+                player.y = 100; // Altura segura para evitar caer debajo de las plataformas
                 player.xVel = 0;
                 player.yVel = 0;
                 loadLevel(currentLevel, phase);
+                startBgm();
             } 
             else if (phase === 2 && player.xVel < -1 && gate.targetLevel < currentLevel) {
-                // Retroceder de nivel físico de regreso - ¡Aparición segura y owner reactivado!
                 currentLevel = gate.targetLevel;
                 document.getElementById('level-val').innerText = `${currentLevel}/4`;
                 player.x = camera.worldWidth - 120;
-                player.y = 100;
+                player.y = 100; // Caída controlada segura
                 player.xVel = 0;
                 player.yVel = 0;
                 loadLevel(currentLevel, phase);
+                startBgm();
 
-                // ¡Alineación segura del Dueño! No aparece fuera del mapa de 2400px para que no caiga al vacío.
+                // IA se recoloca de inmediato para continuar la persecución activa
                 owner.x = Math.min(camera.worldWidth - 50, player.x + 150);
                 owner.y = 100;
                 owner.yVel = 0;
                 owner.stunned = false;
                 owner.stunTimer = 0;
-                owner.active = true; // Sigue persiguiendo de regreso en todos los niveles
+                owner.active = true;
             }
         }
     }
 
-    // Proyectiles
+    // Proyectiles de Basura
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let proj = projectiles[i];
         proj.x += proj.vx;
@@ -1039,7 +1121,6 @@ function update() {
         proj.vy += 0.22; 
         proj.life--;
 
-        // Comprobar Stun al Dueño (Se tropieza y cae de bruces al suelo)
         if (owner.active && !owner.stunned &&
             proj.x < owner.x + owner.width &&
             proj.x + proj.size > owner.x &&
@@ -1047,7 +1128,7 @@ function update() {
             proj.y + proj.size > owner.y) {
             
             owner.stunned = true;
-            owner.stunTimer = 60; // 1 segundo exacto de tropiezo en el suelo
+            owner.stunTimer = 60; // 1 Segundo exacto de aturdimiento en el suelo
             proj.life = 0;
             playSound('hit');
 
@@ -1078,15 +1159,14 @@ function update() {
         }
     }
 
-    // Dueño Persiguiendo (Con IA y gravedad)
+    // Comportamiento del Dueño de la Feria
     if (owner.active) {
         if (owner.stunned) {
             owner.stunTimer--;
             if (owner.stunTimer <= 0) {
                 owner.stunned = false;
             }
-            
-            // Físicas de plataformas terrestres aplicadas incluso noqueado
+            // Mantiene las físicas sólidas al estar aturdido tirado en el suelo
             owner.yVel += gravity;
             let oldOwnerY = owner.y;
             owner.y += owner.yVel;
@@ -1142,7 +1222,6 @@ function update() {
                 }
             }
 
-            // Salto dinámico si el mapache está arriba
             if (player.y < owner.y - 50 && owner.grounded && Math.random() < 0.05) {
                 owner.yVel = -11.5; 
                 owner.grounded = false;
@@ -1191,10 +1270,10 @@ function update() {
     }
 
     if (phase === 2 && currentLevel === 1 && player.x < 120) {
-        winGame(); // Llego sano y salvo a la Madriguera
+        winGame(); 
     }
 
-    // 🌧️ NUBE DE TORMENTA CON APARICIÓN TÁCTICA Y CHARCOS TEMPORALES
+    // Tormenta intermitente táctica (Fase 2)
     if (phase === 2) {
         if (!rainCloud.active) {
             rainCloud.active = true;
@@ -1213,7 +1292,7 @@ function update() {
         }
 
         rainCloud.rainTimer++;
-        if (rainCloud.rainTimer > 180) { // Lluvia intermitente cada 3 segundos
+        if (rainCloud.rainTimer > 180) { 
             rainCloud.raining = !rainCloud.raining;
             rainCloud.rainTimer = 0;
         }
@@ -1233,7 +1312,6 @@ function update() {
                 });
             }
 
-            // Raycasting de cobertura (Buscar Techo)
             let isUnderShelter = false;
             for (let plat of platforms) {
                 if (plat.y < player.y && 
@@ -1247,7 +1325,7 @@ function update() {
 
             if (!isUnderShelter) {
                 if (player.x + player.width > rainCloud.x && player.x < rainCloud.x + rainCloud.width) {
-                    cottonHealth -= 0.18; // Daño constante de lluvia
+                    cottonHealth -= 0.18; 
                     updateCottonUI();
 
                     if (Math.random() < 0.2) {
@@ -1266,7 +1344,6 @@ function update() {
         }
     }
 
-    // Goteras y charcos en regreso
     if (phase === 2) {
         for (let haz of hazards) {
             if (haz.type === 'puddle') {
@@ -1301,7 +1378,6 @@ function update() {
         }
     }
 
-    // Partículas y secado de charcos evaporables
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.x += p.xVel;
@@ -1333,7 +1409,6 @@ function update() {
             }
         }
 
-        // Generar charcos temporales que se evaporan
         if (p.isRainDrop) {
             for (let plat of platforms) {
                 if (p.x > plat.x && p.x < plat.x + plat.width &&
@@ -1352,7 +1427,6 @@ function update() {
         }
     }
 
-    // Temporizador de secado para los charcos
     for (let i = hazards.length - 1; i >= 0; i--) {
         let h = hazards[i];
         if (h.isTemporary) {
@@ -1363,7 +1437,6 @@ function update() {
         }
     }
 
-    // Cámara fluida
     let targetCamX = player.x - camera.width / 2;
     if (targetCamX < 0) targetCamX = 0;
     if (targetCamX > camera.worldWidth - camera.width) targetCamX = camera.worldWidth - camera.width;
@@ -1387,7 +1460,7 @@ function createTemporaryPuddle(x, y, width) {
         width: width,
         height: 6,
         isTemporary: true,
-        life: 200 // Se seca en aprox 3.3 segundos
+        life: 200 
     });
 }
 
@@ -1412,7 +1485,7 @@ function updateCottonUI() {
     document.getElementById('cotton-health-fill').style.width = `${cottonHealth}%`;
     
     if (cottonHealth <= 0) {
-        player.meltAnimTimer = 90; // Gatilla la triste animación de disolución antes de perder
+        player.meltAnimTimer = 90; 
     }
 }
 
@@ -1420,7 +1493,7 @@ function triggerRobberyCutscene() {
     playSound('cotton_get');
     hasCottonCandy = true;
     phase = 2; 
-    ownerSpawnTimer = 180; // 3 segundos exactos de gracia
+    ownerSpawnTimer = 180; 
 
     for (let i = 0; i < 20; i++) {
         particles.push({
@@ -1438,28 +1511,27 @@ function triggerRobberyCutscene() {
     document.getElementById('phase-val').innerText = "¡CORRE! ¡EL DUEÑO SE ACERCA!";
     document.getElementById('phase-val').style.color = "#ff80ab";
     updateCottonUI();
+    startBgm(); 
 }
 
 function draw() {
-    // Escenario de fondo según niveles de Terraria/Stray
     let skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     if (currentLevel === 1) {
-        skyGradient.addColorStop(0, '#020014'); // Bosque profundo
+        skyGradient.addColorStop(0, '#020014'); 
         skyGradient.addColorStop(1, '#0c1a30');
     } else if (currentLevel === 2) {
-        skyGradient.addColorStop(0, '#0a0d14'); // Zona industrial Stray
+        skyGradient.addColorStop(0, '#0a0d14'); 
         skyGradient.addColorStop(1, '#1b222c');
     } else if (currentLevel === 3) {
-        skyGradient.addColorStop(0, '#05050d'); // Ciudad nocturna
+        skyGradient.addColorStop(0, '#05050d'); 
         skyGradient.addColorStop(1, '#131324');
     } else {
-        skyGradient.addColorStop(0, '#110521'); // Feria
+        skyGradient.addColorStop(0, '#110521'); 
         skyGradient.addColorStop(1, '#361559');
     }
     ctx.fillStyle = skyGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Parallax
     ctx.save();
     starBackground.forEach(star => {
         ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
@@ -1485,12 +1557,10 @@ function draw() {
 
     drawBackgroundScenery();
 
-    // Dibujar Portales Físicos (🚪 Entradas y Tuberías)
     for (let gate of transitions) {
         drawTransitionGate(gate);
     }
 
-    // Dibujar Plataformas
     for (let plat of platforms) {
         ctx.fillStyle = plat.color;
         ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
@@ -1516,7 +1586,7 @@ function draw() {
     }
 
     if (rainCloud.active) {
-        ctx.drawImage(assets.storm_cloud, rainCloud.x, rainCloud.y, rainCloud.width, rainCloud.height);
+        safeDrawImage(assets.storm_cloud, rainCloud.x, rainCloud.y, rainCloud.width, rainCloud.height);
     }
 
     for (let item of items) {
@@ -1544,7 +1614,6 @@ function draw() {
 
     ctx.restore();
 
-    // Alertas retro dinámicas
     if (ownerSpawnTimer > 0) {
         ctx.save();
         ctx.fillStyle = 'rgba(5, 5, 12, 0.9)';
@@ -1556,7 +1625,6 @@ function draw() {
         ctx.fillStyle = '#ff80ab';
         ctx.font = '11px "Press Start 2P"';
         ctx.textAlign = 'center';
-        let sLeft = Math.ceil(ownerSpawnTimer / 60);
         ctx.fillText("¡OH NO, AHÍ VIENE! ¡CORRE!", canvas.width / 2, canvas.height / 2 + 5);
         ctx.restore();
     }
@@ -1580,7 +1648,6 @@ function draw() {
 function drawTransitionGate(gate) {
     ctx.save();
     if (gate.type === 'tree_trunk') {
-        // Tronco hueco de madera
         ctx.fillStyle = '#3e2723';
         ctx.fillRect(gate.x, gate.y, gate.width, gate.height);
         ctx.fillStyle = '#1a0c02';
@@ -1590,7 +1657,6 @@ function drawTransitionGate(gate) {
         ctx.fillText("ENTRAR", gate.x - 10, gate.y - 10);
     } 
     else if (gate.type === 'sewer_pipe') {
-        // Tubería gigante verde Stray style
         ctx.fillStyle = '#1b3d11';
         ctx.fillRect(gate.x, gate.y, gate.width, gate.height);
         ctx.fillStyle = '#081404';
@@ -1600,7 +1666,6 @@ function drawTransitionGate(gate) {
         ctx.fillText("TUBERÍA", gate.x - 10, gate.y - 10);
     }
     else if (gate.type === 'alley_door') {
-        // Puerta metálica de ciudad
         ctx.fillStyle = '#37474f';
         ctx.fillRect(gate.x, gate.y, gate.width, gate.height);
         ctx.fillStyle = '#10171d';
@@ -1610,7 +1675,6 @@ function drawTransitionGate(gate) {
         ctx.fillText("PUERTA", gate.x - 10, gate.y - 10);
     }
     else if (gate.type === 'carnival_arch') {
-        // Arco de carnaval de 32 bits
         ctx.fillStyle = '#d32f2f';
         ctx.fillRect(gate.x, gate.y, gate.width, gate.height);
         ctx.fillStyle = '#ffe082';
@@ -1624,9 +1688,11 @@ function drawTransitionGate(gate) {
 
 function drawBackgroundScenery() {
     if (currentLevel === 1) {
-        // ¡Solución a la madriguera invisible!: En fase 2, se eleva a y = 310 para estar sobre la plataforma segura de tierra
-        let burrowY = (phase === 2) ? 310 : 410;
-
+        // Madriguera persistente en su posición de superficie para Fase 1 e intacta para la elevación de la Fase 2
+        let burrowY = 410;
+        if (phase === 2) {
+            burrowY = 310; // Elevada para no quedar enterrada tras la plataforma de retorno
+        }
         ctx.fillStyle = '#4e342e';
         ctx.beginPath();
         ctx.arc(100, burrowY, 48, Math.PI, 0);
@@ -1642,7 +1708,6 @@ function drawBackgroundScenery() {
     }
 
     if (currentLevel === 2) {
-        // Fondo de tuberías enredadas (Terraria/Stray style)
         ctx.fillStyle = '#263238';
         ctx.fillRect(150, 50, 20, 360);
         ctx.fillRect(1000, 50, 30, 360);
@@ -1650,7 +1715,6 @@ function drawBackgroundScenery() {
     }
 
     if (currentLevel === 4) {
-        // Tienda de la feria
         ctx.fillStyle = '#d32f2f';
         ctx.fillRect(2200, 270, 140, 140);
         ctx.fillStyle = '#ffffff';
@@ -1666,7 +1730,7 @@ function drawProjectile(proj) {
     ctx.translate(proj.x + proj.size/2, proj.y + proj.size/2);
     let angle = (Date.now() / 120) % (Math.PI * 2);
     ctx.rotate(angle);
-    ctx.drawImage(assets.trash_can, -proj.size/2, -proj.size/2, proj.size, proj.size);
+    safeDrawImage(assets.trash_can, -proj.size/2, -proj.size/2, proj.size, proj.size);
     ctx.restore();
 }
 
@@ -1674,7 +1738,7 @@ function drawItem(item) {
     ctx.save();
     let floatY = Math.sin((Date.now() / 200) + item.x) * 4;
     ctx.translate(item.x, item.y + floatY);
-    ctx.drawImage(assets[item.type], 0, 0, item.width, item.height);
+    safeDrawImage(assets[item.type], 0, 0, item.width, item.height);
     ctx.restore();
 }
 
@@ -1687,26 +1751,25 @@ function drawPlayer() {
         ctx.scale(-1, 1);
     }
 
-    // Selector de Animación del Mapache
     let frameImg;
     if (player.meltAnimTimer > 0) {
-        frameImg = assets.raccoon_wet; // Animación Sad/Llorar mojado
+        frameImg = assets.raccoon_wet; 
     } else if (player.throwAnimTimer > 0) {
-        frameImg = assets.raccoon_throw; // Animación de Lanzamiento de basura
+        frameImg = assets.raccoon_throw; 
     } else if (!player.grounded) {
-        frameImg = assets.raccoon_jump; // Animación de salto
+        frameImg = assets.raccoon_jump; 
     } else if (Math.abs(player.xVel) < 0.2) {
-        frameImg = assets.raccoon_walk_0; // Quieto
+        frameImg = assets.raccoon_walk_0; 
     } else {
-        frameImg = (player.animFrame === 0) ? assets.raccoon_walk_0 : assets.raccoon_walk_1; // Caminar
+        frameImg = (player.animFrame === 0) ? assets.raccoon_walk_0 : assets.raccoon_walk_1; 
     }
 
-    ctx.drawImage(frameImg, 0, 0, player.width, player.height);
+    safeDrawImage(frameImg, 0, 0, player.width, player.height);
 
     if (hasCottonCandy && player.meltAnimTimer === 0) {
         ctx.save();
         ctx.globalAlpha = cottonHealth / 100;
-        ctx.drawImage(assets.cotton_candy, -8, -12, 24, 30);
+        safeDrawImage(assets.cotton_candy, -8, -12, 24, 30);
         ctx.restore();
     }
 
@@ -1722,21 +1785,19 @@ function drawOwner() {
         ctx.scale(-1, 1);
     }
 
-    // Selector de Animación del Dueño
     let frameImg;
     if (owner.stunned) {
-        frameImg = assets.owner_trip; // 🤸 ¡SPRITE DE TROPIEZO / CAÍDA CARACTERÍSTICO!
+        frameImg = assets.owner_trip; 
     } else if (!owner.grounded) {
-        frameImg = assets.owner_jump; // Animación de salto
+        frameImg = assets.owner_jump; 
     } else {
-        frameImg = (owner.animFrame === 0) ? assets.owner_walk_0 : assets.owner_walk_1; // Carrera
+        frameImg = (owner.animFrame === 0) ? assets.owner_walk_0 : assets.owner_walk_1; 
     }
 
-    // Ajustar offset del dibujo del tropiezo por tamaño horizontal
     if (owner.stunned) {
-        ctx.drawImage(frameImg, -6, 20, 52, 36);
+        safeDrawImage(frameImg, -6, 20, 52, 36);
     } else {
-        ctx.drawImage(frameImg, 0, 0, owner.width, owner.height);
+        safeDrawImage(frameImg, 0, 0, owner.width, owner.height);
     }
 
     if (owner.stunned) {
