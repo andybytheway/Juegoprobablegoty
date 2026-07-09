@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapache Adventure - Platform Level Designer</title>
+    <!-- Tailwind CSS for high quality dark theme visual UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons for visual controls -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+        /* Checkered pixel grid matching the reference image checker background */
+        .pixel-grid {
+            background-color: #1a1a1a;
+            background-image: 
+                linear-gradient(45deg, #242424 25%, transparent 25%), 
+                linear-gradient(-45deg, #242424 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #242424 75%), 
+                linear-gradient(-45deg, transparent 75%, #242424 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        /* Custom scrollbars for slick game-dev panel feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body class="bg-[#0f0f12] text-slate-100 overflow-hidden h-screen flex flex-col">
+
+<!-- Top Action Bar / Header -->
+<header class="bg-[#141419] border-b border-slate-800 px-6 py-3 flex items-center justify-between z-10">
+    <div class="flex items-center gap-3">
+        <div class="bg-amber-500 text-slate-900 font-bold p-2 rounded-lg text-lg flex items-center gap-2 shadow-lg shadow-amber-500/10">
+            <i class="fa-solid fa-raccoon">🦝</i>
+        </div>
+        <div>
+            <h1 class="text-md font-bold tracking-wide uppercase text-slate-100">Mapache Level Designer</h1>
+            <p class="text-xs text-slate-400">Editor de Precisión con Hitbox Estricto para Texturas Exactas</p>
+        </div>
+    </div>
+    
+    <!-- Quick Controls -->
+    <div class="flex items-center gap-3">
+        <div class="bg-[#1c1c24] rounded-lg p-1 flex items-center border border-slate-800">
+            <button onclick="setGridSize(1)" id="grid-1" class="px-2.5 py-1 text-xs font-semibold rounded bg-amber-500 text-slate-900 transition-all">1px (Libre)</button>
+            <button onclick="setGridSize(5)" id="grid-5" class="px-2.5 py-1 text-xs font-semibold rounded text-slate-400 hover:text-slate-200 transition-all">5px</button>
+            <button onclick="setGridSize(10)" id="grid-10" class="px-2.5 py-1 text-xs font-semibold rounded text-slate-400 hover:text-slate-200 transition-all">10px</button>
+            <button onclick="setGridSize(20)" id="grid-20" class="px-2.5 py-1 text-xs font-semibold rounded text-slate-400 hover:text-slate-200 transition-all">20px</button>
+        </div>
+
+        <div class="h-6 w-px bg-slate-800"></div>
+
+        <button onclick="clearCanvas()" class="px-3 py-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-trash-can"></i> Limpiar Todo
+        </button>
+        <button onclick="toggleHitboxGuides()" id="toggle-guides-btn" class="px-3 py-1.5 bg-indigo-950/50 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-800/50 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-eye"></i> Hitbox Visible
+        </button>
+    </div>
+</header>
+
+<!-- Main Workspace Layout -->
+<div class="flex-1 flex overflow-hidden relative">
+
+    <!-- Left Sidebar: strict texture assets library -->
+    <aside class="w-80 bg-[#121217] border-r border-slate-800 flex flex-col overflow-y-auto shrink-0">
+        <div class="p-4 border-b border-slate-800 bg-[#16161f]">
+            <h2 class="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-cubes"></i> Librería de Texturas
+            </h2>
+            <p class="text-[11px] text-slate-400 mt-1">Los tamaños están limitados estrictamente para prevenir deformaciones en tus assets.</p>
+        </div>
+
+        <!-- Section 1: Ciudad Industrial -->
+        <div class="p-4 border-b border-slate-800/60">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wide">Sección 1: Ciudad Industrial</span>
+                <span class="text-[9px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">SpriteCiudadplata</span>
+            </div>
+            
+            <!-- Main Floor Platform -->
+            <div class="mb-4">
+                <p class="text-[10px] text-slate-400 mb-1">1. Plataforma de Suelo Principal</p>
+                <button onclick="addPlatform('ind_main')" class="w-full bg-[#1c1c24] hover:bg-slate-800 text-left p-2.5 rounded-lg border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-1 group">
+                    <div class="flex justify-between items-center text-xs font-medium text-slate-200">
+                        <span class="group-hover:text-amber-400">Suelo Principal</span>
+                        <span class="text-[10px] text-amber-500/80 font-mono">2400 x 40 px</span>
+                    </div>
+                    <div class="h-4 w-full bg-slate-700 rounded border border-amber-600/30 overflow-hidden relative">
+                        <div class="h-1 bg-amber-500 absolute top-0 left-0 w-full" title="Hitbox 15px"></div>
+                        <span class="absolute inset-0 flex items-center justify-center text-[9px] text-slate-400 pointer-events-none">Hitbox: 15px</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Floaters -->
+            <div class="space-y-3">
+                <p class="text-[10px] text-slate-400 mb-1">2. Plataformas Flotantes (Alto Hitbox 15px)</p>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Type 1 Pequeña -->
+                    <button onclick="addPlatform('ind_small')" class="bg-[#1c1c24] hover:bg-slate-800 text-left p-2 rounded border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Tipo 1 Pequeña</span>
+                        <span class="text-[9px] font-mono text-slate-400">180px x 15px</span>
+                        <div class="h-2 w-full bg-[#3e3e4f] rounded relative border-t-2 border-amber-500"></div>
+                    </button>
+                    <!-- Type 2 Mediana -->
+                    <button onclick="addPlatform('ind_medium')" class="bg-[#1c1c24] hover:bg-slate-800 text-left p-2 rounded border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Tipo 2 Mediana</span>
+                        <span class="text-[9px] font-mono text-slate-400">220px x 15px</span>
+                        <div class="h-2 w-full bg-[#3e3e4f] rounded relative border-t-2 border-amber-500"></div>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Type 3 Grande -->
+                    <button onclick="addPlatform('ind_large')" class="bg-[#1c1c24] hover:bg-slate-800 text-left p-2 rounded border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Tipo 3 Grande</span>
+                        <span class="text-[9px] font-mono text-slate-400">400px x 15px</span>
+                        <div class="h-2 w-full bg-[#3e3e4f] rounded relative border-t-2 border-amber-500"></div>
+                    </button>
+                    <!-- Type 4 Super -->
+                    <button onclick="addPlatform('ind_super')" class="bg-[#1c1c24] hover:bg-slate-800 text-left p-2 rounded border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Tipo 4 Súper</span>
+                        <span class="text-[9px] font-mono text-slate-400">600px x 15px</span>
+                        <div class="h-2 w-full bg-[#3e3e4f] rounded relative border-t-2 border-amber-500"></div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div class="mt-4">
+                <p class="text-[10px] text-slate-400 mb-1.5">3. Detalles Individuales (Piso Firme 15px)</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="addPlatform('ind_detail_1')" class="bg-[#1c1c24] hover:bg-slate-800 text-left p-2 rounded border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Detalle Farola</span>
+                        <span class="text-[9px] font-mono text-slate-400">15px x 15px</span>
+                        <div class="h-4 w-4 bg-slate-600 rounded border border-amber-500"></div>
+                    </button>
+                    <button onclick="addPlatform('ind_detail_2')" class="bg-[#1c1c24] hover:bg-slate-800 text-left p-2 rounded border border-slate-800 hover:border-slate-700 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Piso Firme Detalle</span>
+                        <span class="text-[9px] font-mono text-slate-400">120px x 15px</span>
+                        <div class="h-2 w-full bg-slate-600 rounded border-t border-amber-500"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Feria / Circo -->
+        <div class="p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-rose-400 uppercase tracking-wide">Sección 2: Feria / Circo</span>
+                <span class="text-[9px] bg-slate-800 text-rose-300 px-1.5 py-0.5 rounded">SpriteCircoplata</span>
+            </div>
+
+            <!-- Main Floor Platform -->
+            <div class="mb-4">
+                <p class="text-[10px] text-slate-400 mb-1">1. Plataforma de Suelo Principal</p>
+                <button onclick="addPlatform('circus_main')" class="w-full bg-[#241a1a] hover:bg-[#2d1f1f] text-left p-2.5 rounded-lg border border-red-950 hover:border-red-900 transition-all flex flex-col gap-1 group">
+                    <div class="flex justify-between items-center text-xs font-medium text-slate-200">
+                        <span class="group-hover:text-rose-400">Suelo Circo Principal</span>
+                        <span class="text-[10px] text-rose-400 font-mono">2400 x 40 px</span>
+                    </div>
+                    <div class="h-4 w-full bg-red-900/40 rounded border border-red-600/30 overflow-hidden relative">
+                        <div class="h-1 bg-rose-500 absolute top-0 left-0 w-full"></div>
+                        <span class="absolute inset-0 flex items-center justify-center text-[9px] text-slate-400 pointer-events-none">Hitbox: 15px</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Circus Floaters -->
+            <div class="space-y-3">
+                <p class="text-[10px] text-slate-400 mb-1">2. Plataformas Flotantes (Alto Hitbox 15px)</p>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Circus Small -->
+                    <button onclick="addPlatform('circus_small')" class="bg-[#241a1a] hover:bg-[#2d1f1f] text-left p-2 rounded border border-red-950 hover:border-red-900 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Tipo 1 Pequeña</span>
+                        <span class="text-[9px] font-mono text-slate-400">180px x 15px</span>
+                        <div class="h-2 w-full bg-red-950 rounded relative border-t-2 border-rose-500"></div>
+                    </button>
+                    <!-- Circus Medium -->
+                    <button onclick="addPlatform('circus_medium')" class="bg-[#241a1a] hover:bg-[#2d1f1f] text-left p-2 rounded border border-red-950 hover:border-red-900 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Tipo 2 Mediana</span>
+                        <span class="text-[9px] font-mono text-slate-400">220px x 15px</span>
+                        <div class="h-2 w-full bg-red-950 rounded relative border-t-2 border-rose-500"></div>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2">
+                    <!-- Circus Large -->
+                    <button onclick="addPlatform('circus_large')" class="bg-[#241a1a] hover:bg-[#2d1f1f] text-left p-2 rounded border border-red-950 hover:border-red-900 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Tipo 3 Grande</span>
+                        <span class="text-[9px] font-mono text-slate-400">400px x 15px</span>
+                        <div class="h-2 w-full bg-red-950 rounded relative border-t-2 border-rose-500"></div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div class="mt-4">
+                <p class="text-[10px] text-slate-400 mb-1.5">3. Detalles Individuales (Piso Firme 15px)</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="addPlatform('circus_detail_1')" class="bg-[#241a1a] hover:bg-[#2d1f1f] text-left p-2 rounded border border-red-950 hover:border-red-900 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Lámpara</span>
+                        <span class="text-[9px] font-mono text-slate-400">15px x 15px</span>
+                        <div class="h-4 w-4 bg-red-900 rounded border border-rose-500"></div>
+                    </button>
+                    <button onclick="addPlatform('circus_detail_2')" class="bg-[#241a1a] hover:bg-[#2d1f1f] text-left p-2 rounded border border-red-950 hover:border-red-900 transition-all flex flex-col gap-1">
+                        <span class="text-xs font-medium text-slate-300">Piso Firme</span>
+                        <span class="text-[9px] font-mono text-slate-400">120px x 15px</span>
+                        <div class="h-2 w-full bg-red-900 rounded border-t border-rose-500"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Center Section: Interactive Canvas with Rulers -->
+    <main class="flex-1 flex flex-col overflow-hidden relative bg-[#13131a]">
+        
+        <!-- Canvas Status & Ruler Markers bar -->
+        <div class="bg-[#161622] text-xs px-4 py-2 flex items-center justify-between border-b border-slate-800 text-slate-300">
+            <div class="flex items-center gap-4">
+                <span class="font-mono flex items-center gap-1.5 text-[11px]">
+                    <i class="fa-solid fa-arrows-to-dot text-amber-500"></i> Cursor: 
+                    <span id="coords-display" class="text-amber-400 w-24">X: 0px, Y: 0px</span>
+                </span>
+                <span class="text-slate-600">|</span>
+                <span class="text-[11px] text-slate-400">
+                    <i class="fa-solid fa-gamepad text-slate-500"></i> Resolución Nivel: <span class="font-mono text-slate-200">4800px x 1200px</span>
+                </span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1">
+                    <button onclick="zoomCanvas(0.1)" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded flex items-center justify-center text-xs text-slate-300" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+                    <span id="zoom-text" class="text-xs font-mono text-slate-400 w-12 text-center">100%</span>
+                    <button onclick="zoomCanvas(-0.1)" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded flex items-center justify-center text-xs text-slate-300" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+                    <button onclick="resetZoom()" class="px-2 py-1 bg-slate-850 hover:bg-slate-800 text-[10px] text-slate-400 rounded border border-slate-800">Recentrar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Container Area (with scrollable viewport & customized margins) -->
+        <div id="viewport-container" class="flex-1 overflow-auto relative">
+            
+            <!-- Rulers & Pixel Grid Canvas Core -->
+            <div id="level-canvas" class="pixel-grid absolute origin-top-left transition-transform duration-75 select-none" style="width: 4800px; height: 1200px;">
+                
+                <!-- Vertical X-Axis Pixel Ruler at Top (Anchored to Canvas) -->
+                <div class="absolute top-0 left-0 right-0 h-6 bg-[#0f0f12]/95 border-b border-slate-800 pointer-events-none flex z-10 font-mono text-[9px] text-slate-500">
+                    <div class="absolute left-1 top-1 text-slate-400 font-bold">RULER X</div>
+                    <!-- Dynamically generated markers -->
+                    <script>
+                        for(let x=0; x<4800; x+=100) {
+                            document.write(`<div class="absolute border-l border-slate-700 h-2.5 top-3.5" style="left: ${x}px;"><span class="absolute -top-3.5 left-1">${x}px</span></div>`);
+                        }
+                    </script>
+                </div>
+
+                <!-- Horizontal Y-Axis Pixel Ruler at Left (Anchored to Canvas) -->
+                <div class="absolute top-0 left-0 bottom-0 w-8 bg-[#0f0f12]/95 border-r border-slate-800 pointer-events-none flex flex-col z-10 font-mono text-[9px] text-slate-500">
+                    <div class="absolute top-1 left-0.5 text-slate-400 font-bold rotate-90 origin-top-left translate-x-4">RULER Y</div>
+                    <!-- Dynamically generated markers -->
+                    <script>
+                        for(let y=100; y<1200; y+=100) {
+                            document.write(`<div class="absolute border-t border-slate-700 w-2 left-6" style="top: ${y}px;"><span class="absolute -top-1.5 right-3.5">${y}px</span></div>`);
+                        }
+                    </script>
+                </div>
+
+                <!-- Main Guide Lines & Landmarks (e.g. Anchor 0,0, Y-Axis lines) -->
+                <div class="absolute left-0 right-0 h-px border-t border-dashed border-red-500/40 pointer-events-none z-[1]" style="top: 410px;">
+                    <span class="absolute right-4 -top-2 px-1.5 py-0.5 bg-red-950/80 rounded text-[9px] text-red-400 border border-red-900/50">Línea Guía Y410 (Piso Ciudad)</span>
+                </div>
+                <div class="absolute left-0 right-0 h-px border-t border-dashed border-rose-500/40 pointer-events-none z-[1]" style="top: 450px;">
+                    <span class="absolute right-4 -top-2 px-1.5 py-0.5 bg-rose-950/80 rounded text-[9px] text-rose-400 border border-rose-900/50">Línea Guía Y450 (Piso Feria)</span>
+                </div>
+
+                <!-- Canvas Platforms Target Container -->
+                <div id="platforms-layer" class="absolute inset-0 z-10">
+                    <!-- Dynamic platforms will render here -->
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Right Sidebar: Properties & Code Exporter -->
+    <aside class="w-80 bg-[#121217] border-l border-slate-800 flex flex-col overflow-y-auto shrink-0">
+        <!-- Object Properties -->
+        <div class="p-4 border-b border-slate-800 bg-[#16161f]">
+            <h2 class="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-sliders"></i> Propiedades del Objeto
+            </h2>
+            <p class="text-[11px] text-slate-400 mt-1">Configura con precisión pixel por pixel.</p>
+        </div>
+
+        <div id="properties-panel" class="p-4 flex-1 space-y-4">
+            <!-- Default No Selection Screen -->
+            <div id="no-selection-msg" class="text-center py-10 text-slate-500">
+                <i class="fa-solid fa-arrow-pointer text-2xl mb-2 text-slate-600"></i>
+                <p class="text-xs">Selecciona una plataforma en el mapa para ajustar su posición.</p>
+            </div>
+
+            <!-- Active Selection Inputs (Hidden by default, shown via JS) -->
+            <div id="active-properties" class="hidden space-y-4">
+                <div class="bg-[#1c1c24] p-3 rounded-lg border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span id="prop-category" class="text-[10px] uppercase font-bold text-slate-400">Industrial</span>
+                        <button onclick="deleteSelected()" class="text-red-400 hover:text-red-300 text-xs flex items-center gap-1">
+                            <i class="fa-solid fa-trash-can"></i> Borrar
+                        </button>
+                    </div>
+                    <h3 id="prop-title" class="text-xs font-bold text-slate-200">Suelo Principal</h3>
+                </div>
+
+                <!-- Position X Precise Control -->
+                <div>
+                    <label class="text-[11px] text-slate-400 font-medium block mb-1">Posición X (Pixeles exactos)</label>
+                    <div class="flex gap-1.5">
+                        <button onclick="nudgeX(-10)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">-10</button>
+                        <button onclick="nudgeX(-1)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">-1</button>
+                        <input type="number" id="input-x" class="flex-1 bg-slate-900 border border-slate-800 rounded px-2 text-xs font-mono text-amber-400 text-center" oninput="updateSelectedFromInputs()">
+                        <button onclick="nudgeX(1)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">+1</button>
+                        <button onclick="nudgeX(10)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">+10</button>
+                    </div>
+                </div>
+
+                <!-- Position Y Precise Control -->
+                <div>
+                    <label class="text-[11px] text-slate-400 font-medium block mb-1">Posición Y (Pixeles exactos)</label>
+                    <div class="flex gap-1.5">
+                        <button onclick="nudgeY(-10)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">-10</button>
+                        <button onclick="nudgeY(-1)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">-1</button>
+                        <input type="number" id="input-y" class="flex-1 bg-slate-900 border border-slate-800 rounded px-2 text-xs font-mono text-amber-400 text-center" oninput="updateSelectedFromInputs()">
+                        <button onclick="nudgeY(1)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">+1</button>
+                        <button onclick="nudgeY(10)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-xs text-slate-300 font-mono">+10</button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1">Utiliza las teclas de flecha (↑ ↓ ← →) para ajuste fino de 1px.</p>
+                </div>
+
+                <!-- Dimension info -->
+                <div class="grid grid-cols-2 gap-2 text-xs bg-slate-950 p-2.5 rounded border border-slate-900">
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">Ancho Sprite:</span>
+                        <span id="prop-width" class="font-mono text-slate-300">2400px</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">Alto Visual:</span>
+                        <span id="prop-height" class="font-mono text-slate-300">40px</span>
+                    </div>
+                    <div class="col-span-2 border-t border-slate-900 mt-1.5 pt-1.5">
+                        <span class="text-[10px] text-slate-500 block">Alto Hitbox Lógico:</span>
+                        <span id="prop-hitbox" class="font-mono text-amber-500 font-bold">15px (En la cima)</span>
+                    </div>
+                </div>
+
+                <!-- Alignments helpers -->
+                <div>
+                    <label class="text-[11px] text-slate-400 font-medium block mb-1">Alineación Rápida Y (Plataforma)</label>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button onclick="snapToY(410)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-[10px] text-slate-300">Industrial (Y410)</button>
+                        <button onclick="snapToY(450)" class="px-2 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 rounded text-[10px] text-slate-300">Feria (Y450)</button>
+                    </div>
+                </div>
+
+                <!-- Clone action -->
+                <button onclick="cloneSelected()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                    <i class="fa-solid fa-copy"></i> Duplicar Elemento
+                </button>
+            </div>
+        </div>
+
+        <!-- Code Exporter Drawer -->
+        <div class="p-4 border-t border-slate-800 bg-[#16161f]">
+            <h2 class="text-xs font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-code"></i> Exportar Código Robust
+            </h2>
+            <p class="text-[10px] text-slate-400 mb-2">Elige el formato e incorpóralo directo en tu juego.</p>
+            
+            <select id="export-format" onchange="exportCode()" class="w-full bg-[#1c1c24] border border-slate-800 text-slate-300 rounded p-1.5 text-xs font-mono mb-2">
+                <option value="json">Array de Objetos (JSON)</option>
+                <option value="js">Javascript Vanilla Config</option>
+                <option value="html">HTML Divs Absolutos</option>
+            </select>
+
+            <textarea id="output-code" readonly class="w-full h-36 bg-[#0c0c0f] text-green-400 font-mono text-[10px] p-2 rounded border border-slate-900 focus:outline-none resize-none mb-2" placeholder="Coloca plataformas para generar código..."></textarea>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="copyToClipboard()" class="py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 transition-all">
+                    <i class="fa-solid fa-paste"></i> Copiar Código
+                </button>
+                <button onclick="importCodePrompt()" class="py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs flex items-center justify-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-file-import"></i> Importar JSON
+                </button>
+            </div>
+        </div>
+    </aside>
+
+</div>
+
+<!-- Audio/Visual notifications container -->
+<div id="toast-notif" class="absolute bottom-4 right-4 bg-[#1c1c24] border border-slate-800 text-slate-200 px-4 py-2.5 rounded-lg text-xs font-medium z-50 pointer-events-none opacity-0 shadow-2xl transition-opacity duration-300 flex items-center gap-2">
+    <i class="fa-solid fa-circle-check text-green-400"></i> <span id="toast-text">Acción realizada correctamente</span>
+</div>
+
+<script>
+    // PRECISE SPECIFICATION PRESETS (Strict pixel constraints derived directly from image_6383ae.jpg)
+    const ASSET_PRESETS = {
+        // Section 1: Industrial
+        'ind_main': {
+            name: 'Industrial Suelo Principal',
+            width: 2400,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-zinc-800 border-b-[15px] border-amber-600',
+            bgStyles: 'background-image: linear-gradient(180deg, #555 0%, #333 40%, #1a1a1a 100%);',
+            category: 'industrial'
+        },
+        'ind_small': {
+            name: 'Flotante Ind. Pequeña (Type 1)',
+            width: 180,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-zinc-700 border-t-[15px] border-amber-500',
+            bgStyles: 'background-image: linear-gradient(180deg, #444 0%, #222 100%);',
+            category: 'industrial'
+        },
+        'ind_medium': {
+            name: 'Flotante Ind. Mediana (Type 2)',
+            width: 220,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-zinc-700 border-t-[15px] border-amber-500',
+            bgStyles: 'background-image: linear-gradient(180deg, #444 0%, #222 100%);',
+            category: 'industrial'
+        },
+        'ind_large': {
+            name: 'Flotante Ind. Grande (Type 3)',
+            width: 400,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-zinc-700 border-t-[15px] border-amber-500',
+            bgStyles: 'background-image: linear-gradient(180deg, #444 0%, #222 100%);',
+            category: 'industrial'
+        },
+        'ind_super': {
+            name: 'Flotante Ind. Súper Grande (Type 4)',
+            width: 600,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-zinc-700 border-t-[15px] border-amber-500',
+            bgStyles: 'background-image: linear-gradient(180deg, #444 0%, #222 100%);',
+            category: 'industrial'
+        },
+        'ind_detail_1': {
+            name: 'Detalle Farola (Piso Firme)',
+            width: 15,
+            visualHeight: 60,
+            hitboxHeight: 15,
+            themeClass: 'bg-zinc-600 border-t-[15px] border-amber-400',
+            bgStyles: 'background-image: linear-gradient(90deg, #444 0%, #222 100%);',
+            category: 'industrial'
+        },
+        'ind_detail_2': {
+            name: 'Piso Firme Detalle',
+            width: 120,
+            visualHeight: 15,
+            hitboxHeight: 15,
+            themeClass: 'bg-zinc-600 border-b-2 border-amber-500',
+            bgStyles: '',
+            category: 'industrial'
+        },
+        
+        // Section 2: Circus / Fair
+        'circus_main': {
+            name: 'Suelo Feria Principal',
+            width: 2400,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-red-950 border-b-[15px] border-rose-600',
+            bgStyles: 'background-image: linear-gradient(180deg, #800 0%, #400 40%, #200 100%);',
+            category: 'circus'
+        },
+        'circus_small': {
+            name: 'Flotante Feria Pequeña (Type 1)',
+            width: 180,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-red-900 border-t-[15px] border-rose-500',
+            bgStyles: 'background-image: linear-gradient(180deg, #600 0%, #300 100%);',
+            category: 'circus'
+        },
+        'circus_medium': {
+            name: 'Flotante Feria Mediana (Type 2)',
+            width: 220,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-red-900 border-t-[15px] border-rose-500',
+            bgStyles: 'background-image: linear-gradient(180deg, #600 0%, #300 100%);',
+            category: 'circus'
+        },
+        'circus_large': {
+            name: 'Flotante Feria Grande (Type 3)',
+            width: 400,
+            visualHeight: 40,
+            hitboxHeight: 15,
+            themeClass: 'bg-red-900 border-t-[15px] border-rose-500',
+            bgStyles: 'background-image: linear-gradient(180deg, #600 0%, #300 100%);',
+            category: 'circus'
+        },
+        'circus_detail_1': {
+            name: 'Lámpara Feria (Piso Firme)',
+            width: 15,
+            visualHeight: 60,
+            hitboxHeight: 15,
+            themeClass: 'bg-red-800 border-t-[15px] border-rose-400',
+            bgStyles: 'background-image: linear-gradient(90deg, #500 0%, #300 100%);',
+            category: 'circus'
+        },
+        'circus_detail_2': {
+            name: 'Piso Firme Feria',
+            width: 120,
+            visualHeight: 15,
+            hitboxHeight: 15,
+            themeClass: 'bg-red-800 border-b-2 border-rose-500',
+            bgStyles: '',
+            category: 'circus'
+        }
+    };
+
+    // State Variables
+    let platforms = [];
+    let selectedId = null;
+    let nextId = 1;
+    let gridSize = 1; // Default to free positioning, switchable to 5px, 10px, 20px
+    let zoomLevel = 0.9; // Zoom default to fit layout
+    let panX = 40;
+    let panY = 40;
+    let isDraggingCanvas = false;
+    let isMovingElement = false;
+    let showHitboxGuides = true;
+
+    // References
+    const levelCanvas = document.getElementById('level-canvas');
+    const platformsLayer = document.getElementById('platforms-layer');
+    const noSelectionMsg = document.getElementById('no-selection-msg');
+    const activeProperties = document.getElementById('active-properties');
+
+    function initCanvasTransform() {
+        levelCanvas.style.transform = `scale(${zoomLevel})`;
+        document.getElementById('zoom-text').innerText = `${Math.round(zoomLevel * 100)}%`;
+    }
+
+    // Set Snapping Grid Value
+    function setGridSize(size) {
+        gridSize = size;
+        document.querySelectorAll('[id^="grid-"]').forEach(btn => {
+            btn.classList.remove('bg-amber-500', 'text-slate-900');
+            btn.classList.add('text-slate-400');
+        });
+        const activeBtn = document.getElementById(`grid-${size}`);
+        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.add('bg-amber-500', 'text-slate-900');
+        showToast(`Snap ajustado a ${size}px`);
+    }
+
+    // Toggle showing color blocks for Hitbox zones specifically
+    function toggleHitboxGuides() {
+        showHitboxGuides = !showHitboxGuides;
+        const btn = document.getElementById('toggle-guides-btn');
+        if (showHitboxGuides) {
+            btn.classList.remove('bg-slate-800/50', 'text-slate-400');
+            btn.classList.add('bg-indigo-950/50', 'text-indigo-300');
+            btn.innerHTML = `<i class="fa-solid fa-eye"></i> Hitbox Visible`;
+        } else {
+            btn.classList.remove('bg-indigo-950/50', 'text-indigo-300');
+            btn.classList.add('bg-slate-800/50', 'text-slate-400');
+            btn.innerHTML = `<i class="fa-solid fa-eye-slash"></i> Hitbox Oculto`;
+        }
+        renderPlatforms();
+    }
+
+    // Add Platform to Canvas
+    function addPlatform(presetKey, loadCoords = null) {
+        const preset = ASSET_PRESETS[presetKey];
+        if (!preset) return;
+
+        // Auto determine coordinate if not loaded from file
+        let x = 100;
+        let y = (preset.category === 'industrial') ? 410 : 450;
+
+        if (loadCoords) {
+            x = loadCoords.x;
+            y = loadCoords.y;
+        } else {
+            // Place inside visible view center with slight offset
+            const container = document.getElementById('viewport-container');
+            const centerScrollX = container.scrollLeft;
+            const centerScrollY = container.scrollTop;
+            x = Math.round((centerScrollX + 150) / gridSize) * gridSize;
+            y = Math.round((centerScrollY + 200) / gridSize) * gridSize;
+        }
+
+        const newPlatform = {
+            id: nextId++,
+            type: presetKey,
+            x: x,
+            y: y,
+            width: preset.width,
+            visualHeight: preset.visualHeight,
+            hitboxHeight: preset.hitboxHeight,
+            category: preset.category
+        };
+
+        platforms.push(newPlatform);
+        selectPlatform(newPlatform.id);
+        renderPlatforms();
+        exportCode();
+        
+        // Auto scroll close to added platform
+        showToast(`Plataforma agregada a (${x}px, ${y}px)`);
+    }
+
+    // Render platforms inside pixel canvas with correct overlay graphics
+    function renderPlatforms() {
+        platformsLayer.innerHTML = '';
+        
+        platforms.forEach(p => {
+            const preset = ASSET_PRESETS[p.type];
+            const platformDiv = document.createElement('div');
+            platformDiv.id = `plat-${p.id}`;
+            platformDiv.className = `absolute group cursor-pointer transition-shadow ${selectedId === p.id ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/20' : 'hover:ring-1 hover:ring-amber-500/50'}`;
+            platformDiv.style.left = `${p.x}px`;
+            platformDiv.style.top = `${p.y}px`;
+            platformDiv.style.width = `${p.width}px`;
+            platformDiv.style.height = `${p.visualHeight}px`;
+
+            // Inner visual texture block representation
+            const textureDiv = document.createElement('div');
+            textureDiv.className = `w-full h-full relative ${preset.themeClass} rounded shadow-lg overflow-hidden`;
+            textureDiv.style = preset.bgStyles;
+
+            // Highlight overlay specifically showing the 15px logic Hitbox
+            if (showHitboxGuides) {
+                const hitboxIndicator = document.createElement('div');
+                hitboxIndicator.className = 'absolute top-0 left-0 right-0 bg-red-500/30 border-b border-red-500 border-dashed pointer-events-none flex items-center justify-between px-2 text-[8px] font-mono text-white tracking-widest';
+                hitboxIndicator.style.height = `${p.hitboxHeight}px`;
+                hitboxIndicator.innerHTML = `<span>HITBOX LÓGICO</span><span>${p.hitboxHeight}px</span>`;
+                textureDiv.appendChild(hitboxIndicator);
+            }
+
+            // Visual Label on hover
+            const infoTag = document.createElement('div');
+            infoTag.className = 'absolute -bottom-5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-slate-300 text-[9px] font-mono px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow border border-slate-800';
+            infoTag.innerText = `${p.width}x${p.visualHeight}px (X: ${p.x}, Y: ${p.y})`;
+            platformDiv.appendChild(infoTag);
+
+            platformDiv.appendChild(textureDiv);
+
+            // Mousedown logic for dragging platform
+            platformDiv.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                selectPlatform(p.id);
+                startMovingPlatform(e, p.id);
+            });
+
+            platformsLayer.appendChild(platformDiv);
+        });
+    }
+
+    // Select element and fill out Property Sidebar Panel
+    function selectPlatform(id) {
+        selectedId = id;
+        const p = platforms.find(plat => plat.id === id);
+        
+        if (!p) {
+            selectedId = null;
+            noSelectionMsg.classList.remove('hidden');
+            activeProperties.classList.add('hidden');
+            return;
+        }
+
+        noSelectionMsg.classList.add('hidden');
+        activeProperties.classList.remove('hidden');
+
+        // Update properties info
+        const preset = ASSET_PRESETS[p.type];
+        document.getElementById('prop-title').innerText = preset.name;
+        document.getElementById('prop-category').innerText = p.category === 'industrial' ? 'Sección 1: Ciudad Industrial' : 'Sección 2: Feria o Circo';
+        document.getElementById('input-x').value = p.x;
+        document.getElementById('input-y').value = p.y;
+        document.getElementById('prop-width').innerText = `${p.width}px`;
+        document.getElementById('prop-height').innerText = `${p.visualHeight}px`;
+        document.getElementById('prop-hitbox').innerText = `${p.hitboxHeight}px (En la cima de la textura)`;
+
+        // Highlight active visually in canvas
+        document.querySelectorAll('#platforms-layer > div').forEach(div => {
+            div.classList.remove('ring-2', 'ring-amber-400');
+        });
+        const activeDiv = document.getElementById(`plat-${id}`);
+        if (activeDiv) {
+            activeDiv.classList.add('ring-2', 'ring-amber-400');
+        }
+    }
+
+    // Start Moving platform around grid
+    let dragStartMouseX = 0;
+    let dragStartMouseY = 0;
+    let dragStartPlatformX = 0;
+    let dragStartPlatformY = 0;
+
+    function startMovingPlatform(e, id) {
+        isMovingElement = true;
+        const p = platforms.find(plat => plat.id === id);
+        if (!p) return;
+
+        dragStartMouseX = e.clientX;
+        dragStartMouseY = e.clientY;
+        dragStartPlatformX = p.x;
+        dragStartPlatformY = p.y;
+
+        const onMouseMove = (moveEvt) => {
+            if (!isMovingElement) return;
+
+            // Calculate delta with zoom compensation
+            const deltaX = (moveEvt.clientX - dragStartMouseX) / zoomLevel;
+            const deltaY = (moveEvt.clientY - dragStartMouseY) / zoomLevel;
+
+            // Apply snap grid size
+            let targetX = dragStartPlatformX + deltaX;
+            let targetY = dragStartPlatformY + deltaY;
+
+            targetX = Math.round(targetX / gridSize) * gridSize;
+            targetY = Math.round(targetY / gridSize) * gridSize;
+
+            // Bounds constraints
+            if (targetX < 0) targetX = 0;
+            if (targetX + p.width > 4800) targetX = 4800 - p.width;
+            if (targetY < 0) targetY = 0;
+            if (targetY + p.visualHeight > 1200) targetY = 1200 - p.visualHeight;
+
+            p.x = targetX;
+            p.y = targetY;
+
+            // Real-time UI updates
+            document.getElementById('input-x').value = targetX;
+            document.getElementById('input-y').value = targetY;
+
+            const targetDiv = document.getElementById(`plat-${p.id}`);
+            if (targetDiv) {
+                targetDiv.style.left = `${targetX}px`;
+                targetDiv.style.top = `${targetY}px`;
+                const infoTag = targetDiv.querySelector('div:last-child');
+                if (infoTag) infoTag.innerText = `${p.width}x${p.visualHeight}px (X: ${targetX}, Y: ${targetY})`;
+            }
+        };
+
+        const onMouseUp = () => {
+            isMovingElement = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            exportCode();
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    // Dynamic Tracking of cursor coordinates
+    levelCanvas.addEventListener('mousemove', (e) => {
+        const rect = levelCanvas.getBoundingClientRect();
+        const relativeX = Math.round((e.clientX - rect.left) / zoomLevel);
+        const relativeY = Math.round((e.clientY - rect.top) / zoomLevel);
+        document.getElementById('coords-display').innerText = `X: ${relativeX}px, Y: ${relativeY}px`;
+    });
+
+    // Increment properties manually
+    function updateSelectedFromInputs() {
+        if (selectedId === null) return;
+        const p = platforms.find(plat => plat.id === selectedId);
+        if (!p) return;
+
+        let inputX = parseInt(document.getElementById('input-x').value) || 0;
+        let inputY = parseInt(document.getElementById('input-y').value) || 0;
+
+        p.x = Math.max(0, Math.min(4800 - p.width, inputX));
+        p.y = Math.max(0, Math.min(1200 - p.visualHeight, inputY));
+
+        renderPlatforms();
+        exportCode();
+    }
+
+    function nudgeX(amt) {
+        if (selectedId === null) return;
+        const p = platforms.find(plat => plat.id === selectedId);
+        if (!p) return;
+
+        p.x = Math.max(0, Math.min(4800 - p.width, p.x + amt));
+        document.getElementById('input-x').value = p.x;
+        renderPlatforms();
+        exportCode();
+    }
+
+    function nudgeY(amt) {
+        if (selectedId === null) return;
+        const p = platforms.find(plat => plat.id === selectedId);
+        if (!p) return;
+
+        p.y = Math.max(0, Math.min(1200 - p.visualHeight, p.y + amt));
+        document.getElementById('input-y').value = p.y;
+        renderPlatforms();
+        exportCode();
+    }
+
+    function snapToY(val) {
+        if (selectedId === null) return;
+        const p = platforms.find(plat => plat.id === selectedId);
+        if (!p) return;
+
+        p.y = val;
+        document.getElementById('input-y').value = p.y;
+        renderPlatforms();
+        exportCode();
+        showToast(`Alineado a Y: ${val}px`);
+    }
+
+    function cloneSelected() {
+        if (selectedId === null) return;
+        const p = platforms.find(plat => plat.id === selectedId);
+        if (!p) return;
+
+        addPlatform(p.type, { x: p.x + 40, y: p.y + 40 });
+        showToast("Elemento duplicado con éxito");
+    }
+
+    function deleteSelected() {
+        if (selectedId === null) return;
+        platforms = platforms.filter(plat => plat.id !== selectedId);
+        selectPlatform(null);
+        renderPlatforms();
+        exportCode();
+        showToast("Elemento eliminado");
+    }
+
+    // Keyboard precise alignment listener (Arrow keys)
+    document.addEventListener('keydown', (e) => {
+        if (selectedId === null) return;
+        
+        // Prevent default browser scrolling with keys if an object is selected
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            e.preventDefault();
+            
+            const step = gridSize; // nudge based on selected grid snapping size
+            
+            if (e.key === 'ArrowUp') nudgeY(-step);
+            if (e.key === 'ArrowDown') nudgeY(step);
+            if (e.key === 'ArrowLeft') nudgeX(-step);
+            if (e.key === 'ArrowRight') nudgeX(step);
+        }
+    });
+
+    // Live Exporter
+    function exportCode() {
+        const format = document.getElementById('export-format').value;
+        const outputTextarea = document.getElementById('output-code');
+        
+        if (platforms.length === 0) {
+            outputTextarea.value = '';
+            return;
+        }
+
+        // Clean coordinates objects
+        const cleanData = platforms.map(p => ({
+            id: p.id,
+            type: p.type,
+            x: p.x,
+            y: p.y,
+            w: p.width,
+            h: p.visualHeight,
+            hitbox_h: p.hitboxHeight,
+            section: p.category
+        }));
+
+        if (format === 'json') {
+            outputTextarea.value = JSON.stringify(cleanData, null, 2);
+        } else if (format === 'js') {
+            let jsString = `// Configuración de niveles para Mapache Adventure\n`;
+            jsString += `const LEVEL_PLATFORMS = [\n`;
+            cleanData.forEach(p => {
+                jsString += `    { x: ${p.x}, y: ${p.y}, width: ${p.w}, height: ${p.h}, hitboxHeight: ${p.hitbox_h}, type: "${p.type}", section: "${p.section}" },\n`;
+            });
+            jsString += `];`;
+            outputTextarea.value = jsString;
+        } else if (format === 'html') {
+            let htmlString = `<!-- Plataformas Posicionadas -->\n`;
+            cleanData.forEach(p => {
+                const preset = ASSET_PRESETS[p.type];
+                htmlString += `<div class="absolute platform-${p.type}" style="left: ${p.x}px; top: ${p.y}px; width: ${p.w}px; height: ${p.h}px;" data-hitbox="${p.hitbox_h}"></div>\n`;
+            });
+            outputTextarea.value = htmlString;
+        }
+    }
+
+    // Import configurations JSON back to Canvas
+    function importCodePrompt() {
+        const input = prompt("Pega aquí el array JSON de las plataformas exportadas previamente:");
+        if (!input) return;
+
+        try {
+            const parsed = JSON.parse(input);
+            if (!Array.isArray(parsed)) throw new Error("Debe ser un array de objetos");
+
+            platforms = [];
+            nextId = 1;
+
+            parsed.forEach(p => {
+                const presetKey = p.type;
+                if (ASSET_PRESETS[presetKey]) {
+                    const newPlatform = {
+                        id: nextId++,
+                        type: presetKey,
+                        x: p.x,
+                        y: p.y,
+                        width: ASSET_PRESETS[presetKey].width,
+                        visualHeight: ASSET_PRESETS[presetKey].visualHeight,
+                        hitboxHeight: ASSET_PRESETS[presetKey].hitboxHeight,
+                        category: ASSET_PRESETS[presetKey].category
+                    };
+                    platforms.push(newPlatform);
+                }
+            });
+
+            selectPlatform(null);
+            renderPlatforms();
+            exportCode();
+            showToast("Nivel importado con éxito");
+        } catch (err) {
+            alert("Error al importar el JSON. Asegúrate de usar la estructura exportada por esta herramienta. Error: " + err.message);
+        }
+    }
+
+    // Copy Text Area contents
+    function copyToClipboard() {
+        const text = document.getElementById('output-code');
+        if (!text.value) {
+            showToast("No hay plataformas colocadas para copiar");
+            return;
+        }
+        text.select();
+        document.execCommand('copy');
+        showToast("¡Código copiado al portapapeles! 📋");
+    }
+
+    // Clear Canvas
+    function clearCanvas() {
+        if (confirm("¿Estás seguro de que quieres borrar todas las plataformas posicionadas?")) {
+            platforms = [];
+            selectedId = null;
+            renderPlatforms();
+            selectPlatform(null);
+            exportCode();
+            showToast("Se limpió el canvas");
+        }
+    }
+
+    // Zoom Engine
+    function zoomCanvas(amount) {
+        zoomLevel = Math.max(0.2, Math.min(2.0, zoomLevel + amount));
+        initCanvasTransform();
+    }
+
+    function resetZoom() {
+        zoomLevel = 0.9;
+        initCanvasTransform();
+        const container = document.getElementById('viewport-container');
+        container.scrollLeft = 0;
+        container.scrollTop = 200; // Scroll center slightly
+        showToast("Vista re-centrada");
+    }
+
+    // Helper Toast notifications
+    function showToast(msg) {
+        const toast = document.getElementById('toast-notif');
+        document.getElementById('toast-text').innerText = msg;
+        toast.style.opacity = '100';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 2200);
+    }
+
+    // Window Onload setup
+    window.onload = function() {
+        // Initialize with default platform layouts resembling a basic platform scene
+        addPlatform('ind_main', { x: 0, y: 410 });
+        addPlatform('ind_small', { x: 450, y: 280 });
+        addPlatform('ind_medium', { x: 800, y: 220 });
+        addPlatform('ind_large', { x: 1200, y: 160 });
+        
+        // Add a circus platform to demonstrate multi-theming
+        addPlatform('circus_small', { x: 1900, y: 300 });
+
+        // Select the main platform to highlight initially
+        selectPlatform(platforms[0].id);
+        
+        // Setup base zoom values
+        resetZoom();
+    };
+
+</script>
+</body>
+</html>

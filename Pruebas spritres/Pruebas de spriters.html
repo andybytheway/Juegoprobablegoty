@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Gran Aventura del Mapache - GBA Deluxe Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            background: #030307;
+            color: #fff;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            border-radius: 12px;
+            border: 6px solid #2e1c0c;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-size: 9px;
+            text-shadow: 2px 2px #000;
+            z-index: 5;
+        }
+        .hud-item {
+            background: rgba(8, 6, 15, 0.9);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 2px solid #a1887f;
+            pointer-events: auto; /* Permite clic en la pausa */
+        }
+        #cotton-health-bar {
+            width: 140px;
+            height: 12px;
+            background: #37474f;
+            border: 2px solid #000;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 8px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        #cotton-health-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #ff80ab, #f50057);
+            transition: width 0.1s ease;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(5, 3, 10, 0.95);
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 8px;
+            text-align: center;
+            border: 2px solid #00e5ff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+            transition: opacity 1.2s ease, visibility 1.2s;
+            opacity: 1;
+            z-index: 5;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 4, 10, 0.96);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+            z-index: 10;
+        }
+        .screen h1 {
+            color: #ffd54f;
+            font-size: 20px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+            text-shadow: 3px 3px 0px #b71c1c;
+        }
+        .screen p {
+            font-size: 9px;
+            color: #cfd8dc;
+            line-height: 2;
+            margin-bottom: 25px;
+            max-width: 600px;
+        }
+        .screen button {
+            font-family: 'Press Start 2P', monospace;
+            background: linear-gradient(to bottom, #4caf50, #2e7d32);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            border-bottom: 5px solid #1b5e20;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            transition: all 0.15s ease;
+            margin: 10px;
+        }
+        .screen button:hover {
+            background: linear-gradient(to bottom, #81c784, #4caf50);
+            transform: translateY(-2px);
+        }
+        .screen button:active {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+        }
+        .cotton-color {
+            color: #ff80ab !important;
+            text-shadow: 1px 1px 0px #c2185b;
+        }
+        /* Botón de pausa en UI */
+        .btn-pausa:hover { background: rgba(255,255,255,0.2); cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+
+        <div id="hud">
+            <div>
+                <div class="hud-item" style="color: #ffd54f; box-shadow: 0 3px 6px rgba(0,0,0,0.5);">TESOROS: <span id="score-val">0</span></div>
+                <div class="hud-item" style="margin-top: 5px; color: #00e5ff; box-shadow: 0 3px 6px rgba(0,0,0,0.5);">NIVEL: <span id="level-val">1/4</span></div>
+            </div>
+            <div id="cotton-health-container" class="hud-item" style="display: none; box-shadow: 0 3px 6px rgba(0,0,0,0.5);">
+                ALGODÓN: <div id="cotton-health-bar"><div id="cotton-health-fill"></div></div>
+            </div>
+            <div>
+                <div class="hud-item btn-pausa" onclick="togglePause()" style="color: #fff; box-shadow: 0 3px 6px rgba(0,0,0,0.5);">⏸️ PAUSA (P)</div>
+                <div class="hud-item" id="phase-val" style="margin-top: 5px; box-shadow: 0 3px 6px rgba(0,0,0,0.5);">¡BUSCA EL ALGODÓN!</div>
+            </div>
+        </div>
+
+        <div id="instructions">Controles: [A][D]/[Flechas] Moverse | [W]/[Espacio] Saltar | [J]/[F] Lanzar Basura</div>
+
+        <!-- 🕹️ MENÚ PRINCIPAL -->
+        <div id="start-screen" class="screen">
+            <h2 style="color: #00e5ff; font-size: 12px; margin-bottom: 5px; text-shadow: 2px 2px 0px #000;">MENÚ PRINCIPAL</h2>
+            <h1>LA AVENTURA DEL MAPACHE<br><span style="font-size: 10px; color: #ff80ab;">32-BIT GBA DELUXE EDITION</span></h1>
+            <p>¡Consigue el legendario <span class="cotton-color">Algodón de Azúcar</span> y llévalo a tu madriguera!<br><br>
+               <strong>[Fase 1]:</strong> Avanza cruzando por las tuberías y puertas.<br>
+               <strong>[Fase 2]:</strong> ¡El escape! Huye de la lluvia para no derretir tu algodón.<br>Lánzale basura al dueño de la feria para aturdirlo.
+            </p>
+            <button onclick="startGame()" style="font-size: 14px; padding: 18px 36px;">▶ INICIAR JUEGO</button>
+        </div>
+
+        <!-- ⏸️ MENÚ DE PAUSA -->
+        <div id="pause-screen" class="screen" style="display: none; background: rgba(0, 0, 0, 0.75);">
+            <h1 style="color: #fff; text-shadow: 3px 3px 0px #000;">JUEGO PAUSADO</h1>
+            <p style="font-size: 12px; color: #fff;">Tómate un respiro...</p>
+            <button onclick="togglePause()" style="background: linear-gradient(to bottom, #00e5ff, #00838f); border-bottom-color: #006064;">REANUDAR</button>
+            <button onclick="location.reload()" style="background: linear-gradient(to bottom, #ff5252, #c62828); border-bottom-color: #8e0000;">SALIR AL MENÚ</button>
+        </div>
+
+        <div id="gameover-screen" class="screen" style="display: none;">
+            <h1 id="fail-title" style="color: #ff1744;">¡MISION FALLIDA!</h1>
+            <p id="fail-reason">Tu algodón se derritió...</p>
+            <button onclick="restartGame()">REINTENTAR</button>
+        </div>
+
+        <div id="win-screen" class="screen" style="display: none;">
+            <h1>¡VICTORIA ABSOLUTA! 🎉</h1>
+            <p>¡Llegaste sano y salvo a tu madriguera con el <span class="cotton-color">Algodón de Azúcar</span> intacto!<br>El mapache es el más feliz del bosque.<br><br>
+               <strong>Tesoros reunidos:</strong> <span id="final-score" style="color: #ffd54f;">0</span>
+            </p>
+            <button onclick="restartGame()">¿JUGAR OTRA VEZ?</button>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let audioCtx = null;
+let bgmIntervalId = null;
+let bgmStep = 0;
+let currentBgmPattern = { melody: [], bass: [], tempo: 150 };
+
+// Melodía RPG rural para Niveles 1, 2 y 3 (Fase 1)
+const bloque1 = [{"nota":"E4","delay":0},{"nota":"G4","delay":598},{"nota":"E4","delay":225},{"nota":"G4","delay":183},{"nota":"E4","delay":226},{"nota":"C4","delay":385},{"nota":"E4","delay":811},{"nota":"G4","delay":598},{"nota":"E4","delay":222},{"nota":"G4","delay":166},{"nota":"B4","delay":229},{"nota":"A4","delay":444},{"nota":"A4","delay":794},{"nota":"G4","delay":593},{"nota":"A4","delay":242},{"nota":"B4","delay":187},{"nota":"A4","delay":195},{"nota":"G4","delay":438},{"nota":"E4","delay":402},{"nota":"D4","delay":203},{"nota":"B3","delay":231},{"nota":"D4","delay":579},{"nota":"A3","delay":583}];
+const bloque2 = [{"nota":"B3","delay":574},{"nota":"D4","delay":574},{"nota":"B3","delay":206},{"nota":"D4","delay":203},{"nota":"B3","delay":203},{"nota":"G3","delay":397},{"nota":"G3","delay":629},{"nota":"B3","delay":226},{"nota":"D4","delay":618},{"nota":"B3","delay":206},{"nota":"D4","delay":190},{"nota":"B4","delay":206},{"nota":"A4","delay":442},{"nota":"G4","delay":662},{"nota":"A4","delay":195},{"nota":"G4","delay":582},{"nota":"A4","delay":204},{"nota":"B4","delay":171},{"nota":"A4","delay":207},{"nota":"G4","delay":384},{"nota":"E4","delay":428},{"nota":"D4","delay":157},{"nota":"B3","delay":227},{"nota":"D4","delay":389},{"nota":"E4","delay":420},{"nota":"A3","delay":402}];
+const bloque3 = [{"nota":"B4","delay":400},{"nota":"A4","delay":359},{"nota":"G4","delay":350},{"nota":"A4","delay":358},{"nota":"A4","delay":343},{"nota":"B4","delay":854},{"nota":"A4","delay":399},{"nota":"G4","delay":382},{"nota":"G4","delay":183},{"nota":"G4","delay":170},{"nota":"E4","delay":387},{"nota":"G4","delay":960},{"nota":"A4","delay":379},{"nota":"G4","delay":364},{"nota":"F#4","delay":401},{"nota":"D4","delay":1284},{"nota":"B3","delay":456},{"nota":"A3","delay":403},{"nota":"A3","delay":405},{"nota":"G3","delay":669},{"nota":"B4","delay":1098},{"nota":"A4","delay":346},{"nota":"G4","delay":359},{"nota":"G4","delay":361},{"nota":"E4","delay":403},{"nota":"E4","delay":729},{"nota":"B4","delay":205},{"nota":"A4","delay":367},{"nota":"G4","delay":378},{"nota":"G4","delay":341},{"nota":"D4","delay":404},{"nota":"A3","delay":1305},{"nota":"B3","delay":185},{"nota":"D4","delay":405},{"nota":"E4","delay":359},{"nota":"A3","delay":400},{"nota":"G3","delay":1288},{"nota":"B3","delay":200},{"nota":"A3","delay":225},{"nota":"G3","delay":387},{"nota":"E3","delay":537}];
+
+const masterMelody = [...bloque1, ...bloque2, ...bloque3];
+let customMelodyTimeoutId = null;
+let customMelodyIndex = 0;
+
+// Pistas para la Feria (Nivel 4) y la Persecución (Fase 2)
+const bgmPatterns = {
+    lvl4: { melody: [60, 62, 64, 65, 67, 0, 67, 0, 65, 64, 62, 60, 59, 0, 59, 0], bass: [36, 36, 40, 40, 43, 43, 43, 43, 41, 41, 38, 38, 35, 35, 35, 35], tempo: 160 },
+    escape: { melody: [57, 58, 60, 58, 57, 58, 60, 0, 55, 56, 58, 56, 55, 56, 58, 0], bass: [33, 33, 33, 33, 33, 33, 33, 33, 31, 31, 31, 31, 31, 31, 31, 31], tempo: 130 }
+};
+
+function noteToFreq(noteName) {
+    if (!noteName) return 0;
+    const notes = { "C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11 };
+    const letter = noteName.slice(0, -1);
+    const octave = parseInt(noteName.slice(-1));
+    if (isNaN(octave) || notes[letter] === undefined) return 0;
+    const semitones = notes[letter] + (octave + 1) * 12;
+    return 440 * Math.pow(2, (semitones - 69) / 12);
+}
+
+function mToF(note) { return !note ? 0 : 440 * Math.pow(2, (note - 69) / 12); }
+
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playCustomMelody() {
+    stopBgm();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    function playNext() {
+        if (!gameActive || isPaused) return;
+        if (phase === 2 || (phase === 1 && currentLevel === 4)) return;
+
+        const noteObj = masterMelody[customMelodyIndex];
+        const freq = noteToFreq(noteObj.nota);
+
+        if (freq > 0) {
+            let now = audioCtx.currentTime;
+            
+            // Sintetizador Melodía
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(freq, now);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.24, now); 
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc.start(now);
+            osc.stop(now + 0.4);
+
+            // Sintetizador Bajo Acompañante
+            let oscB = audioCtx.createOscillator();
+            let gainB = audioCtx.createGain();
+            oscB.type = 'triangle';
+            oscB.frequency.setValueAtTime(freq / 2, now);
+            oscB.connect(gainB);
+            gainB.connect(audioCtx.destination);
+            gainB.gain.setValueAtTime(0.28, now);
+            gainB.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+            oscB.start(now);
+            oscB.stop(now + 0.5);
+        }
+
+        customMelodyIndex = (customMelodyIndex + 1) % masterMelody.length;
+        const nextNoteObj = masterMelody[customMelodyIndex];
+        const delay = nextNoteObj.delay || 300;
+
+        customMelodyTimeoutId = setTimeout(playNext, delay);
+    }
+
+    const initialDelay = masterMelody[customMelodyIndex].delay || 0;
+    customMelodyTimeoutId = setTimeout(playNext, initialDelay);
+}
+
+function startBgm() {
+    stopBgm();
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    
+    if (phase === 1 && currentLevel < 4) {
+        playCustomMelody();
+    } else {
+        bgmStep = 0;
+        updateBgmPattern();
+        function tick() {
+            if (!gameActive || !audioCtx || isPaused) return;
+            let now = audioCtx.currentTime;
+            let melNote = currentBgmPattern.melody[bgmStep % currentBgmPattern.melody.length];
+            if (melNote > 0) {
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.type = 'square'; osc.frequency.setValueAtTime(mToF(melNote), now);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                gain.gain.setValueAtTime(0.24, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now); osc.stop(now + 0.15);
+            }
+            let bassNote = currentBgmPattern.bass[bgmStep % currentBgmPattern.bass.length];
+            if (bassNote > 0) {
+                let oscB = audioCtx.createOscillator(); let gainB = audioCtx.createGain();
+                oscB.type = 'triangle'; oscB.frequency.setValueAtTime(mToF(bassNote), now);
+                oscB.connect(gainB); gainB.connect(audioCtx.destination);
+                gainB.gain.setValueAtTime(0.28, now); gainB.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                oscB.start(now); oscB.stop(now + 0.2);
+            }
+            bgmStep++;
+            bgmIntervalId = setTimeout(tick, currentBgmPattern.tempo);
+        }
+        bgmIntervalId = setTimeout(tick, currentBgmPattern.tempo);
+    }
+}
+
+function stopBgm() {
+    if (bgmIntervalId) { clearTimeout(bgmIntervalId); bgmIntervalId = null; }
+    if (customMelodyTimeoutId) { clearTimeout(customMelodyTimeoutId); customMelodyTimeoutId = null; }
+}
+
+// Actualizar patrón de ritmo acelerado en feria o escape
+function updateBgmPattern() {
+    if (phase === 2) currentBgmPattern = bgmPatterns.escape;
+    else if (currentLevel === 4) currentBgmPattern = bgmPatterns.lvl4;
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        if (type === 'jump') { osc.type = 'triangle'; osc.frequency.setValueAtTime(140, now); osc.frequency.exponentialRampToValueAtTime(620, now + 0.12); gain.gain.setValueAtTime(0.24, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12); osc.start(now); osc.stop(now + 0.12); }
+        else if (type === 'coin') { osc.type = 'sine'; osc.frequency.setValueAtTime(587, now); osc.frequency.setValueAtTime(987, now + 0.08); gain.gain.setValueAtTime(0.20, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25); osc.start(now); osc.stop(now + 0.25); }
+        else if (type === 'splash') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(190, now); osc.frequency.linearRampToValueAtTime(30, now + 0.3); gain.gain.setValueAtTime(0.30, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3); osc.start(now); osc.stop(now + 0.3); }
+        else if (type === 'cotton_get') { osc.type = 'square'; osc.frequency.setValueAtTime(523, now); osc.frequency.setValueAtTime(659, now + 0.1); osc.frequency.setValueAtTime(783, now + 0.2); osc.frequency.setValueAtTime(1046, now + 0.3); gain.gain.setValueAtTime(0.24, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5); osc.start(now); osc.stop(now + 0.5); }
+        else if (type === 'throw') { osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(90, now + 0.1); gain.gain.setValueAtTime(0.24, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); osc.start(now); osc.stop(now + 0.1); }
+        else if (type === 'hit') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(110, now); osc.frequency.setValueAtTime(60, now + 0.15); gain.gain.setValueAtTime(0.32, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18); osc.start(now); osc.stop(now + 0.18); }
+        else if (type === 'win') { osc.type = 'triangle'; [523, 659, 783, 1046, 1318].forEach((freq, i) => { const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.setValueAtTime(freq, now + i * 0.08); g.gain.setValueAtTime(0.24, now + i * 0.08); g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.4); o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.4); }); }
+    } catch (e) {}
+}
+
+function createSvgUrl(markup) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup); }
+
+const assets = {
+    // 🖼️ Tiras de Sprites PNG del usuario
+    mapache_idle: new Image(),
+    mapache_run: new Image(),
+    mapache_jump: new Image(),
+    mapache_throw: new Image(),
+    mapache_run_cotton: new Image(),
+    mapache_jump_cotton: new Image(),
+    mapache_caught: new Image(), 
+    
+    // Imagenes de fondo cargadas para los niveles
+    forest_bg: new Image(),
+    pipes_bg: new Image(),
+    city_bg: new Image(),
+    circus_bg: new Image(),
+
+    // TEXTURAS DE PLATAFORMAS (CIUDAD Y FERIA)
+    city_plat: new Image(),
+    circus_plat: new Image(),
+    city_floor: new Image(), // Piso de la ciudad (imagen ancha que se repite/tilea a lo largo del suelo)
+
+    // NUEVAS TEXTURAS DE PRUEBA EN EL NIVEL 1
+    city_large: new Image(),
+    city_medium: new Image(),
+    city_small: new Image(),
+    
+    // MADRIGUERA PERSONALIZADA
+    madriguera: new Image(),
+    
+    // Lápida vectorial de seguridad (Evita problemas de alineación de muerte)
+    gravestone: new Image(),
+    
+    // Vectores procedurales de respaldo (Si no se encuentran los PNGs)
+    raccoon_walk_0: new Image(), raccoon_walk_1: new Image(), raccoon_jump: new Image(), raccoon_throw: new Image(), raccoon_wet: new Image(),
+    owner_walk_0: new Image(), owner_walk_1: new Image(), owner_jump: new Image(), owner_trip: new Image(),
+    cotton_candy: new Image(), donut: new Image(), gem: new Image(), apple: new Image(), pizza: new Image(), bread: new Image(), trash_can: new Image(), storm_cloud: new Image()
+};
+
+// Carga de imágenes locales y de fondo
+assets.mapache_idle.src = 'mapache_idle.png';
+assets.mapache_run.src = 'mapache_run.png';
+assets.mapache_jump.src = 'mapache_jump.png';
+assets.mapache_throw.src = 'mapache_throw.png';
+assets.mapache_run_cotton.src = 'mapache_run_cotton.png';
+assets.mapache_jump_cotton.src = 'mapache_jump_cotton.png';
+assets.mapache_caught.src = 'mapache_caught.png';
+
+// Sistema a prueba de fallos para el fondo del bosque (Soporta ambos nombres)
+assets.forest_bg.src = 'image_3a8f1e.jpg';
+assets.forest_bg.onerror = function() {
+    if (assets.forest_bg.src.indexOf('image_3a8f1e.jpg') !== -1) {
+        assets.forest_bg.src = 'Fondobosque.jpg';
+    }
+};
+
+assets.city_bg.src = 'FondoCiudad.jpeg';
+assets.circus_bg.src = 'FondoCirco.jpeg';
+assets.pipes_bg.src = 'FondoTuberias.png';
+
+// Texturas de plataformas de respaldo
+assets.city_plat.src = 'SpriteCiudadplata.png'; 
+assets.circus_plat.src = 'SpriteCircoplata.png';
+assets.city_floor.src = 'plataformagrandeciudad.png';
+
+// Nuevas texturas cargadas para probar en Nivel 1 (Bosque)
+assets.city_large.src = 'plataformagrandeciudad.png';
+assets.city_medium.src = 'plataformamedianaciudad.png';
+assets.city_small.src = 'plataformaciudadpequeña.png';
+
+// Carga de la madriguera personalizada
+assets.madriguera.src = 'madrigueramapa.png';
+
+// Generación de Lápida Pixelart en SVG (Seguro y nítido para la entrega rápida)
+assets.gravestone.src = createSvgUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
+  <rect x="6" y="4" width="20" height="24" fill="#90a4ae" rx="4"/>
+  <rect x="4" y="26" width="24" height="6" fill="#455a64"/>
+  <rect x="10" y="10" width="2" height="6" fill="#37474f"/>
+  <rect x="11" y="10" width="2" height="2" fill="#37474f"/>
+  <rect x="11" y="13" width="2" height="2" fill="#37474f"/>
+  <rect x="15" y="10" width="2" height="10" fill="#37474f"/>
+  <rect x="20" y="10" width="3" height="6" fill="#37474f"/>
+  <rect x="20" y="10" width="4" height="2" fill="#37474f"/>
+  <rect x="20" y="13" width="4" height="2" fill="#37474f"/>
+  <polygon points="6,8 10,12 12,11 11,8" fill="#546e7a" opacity="0.6"/>
+</svg>`);
+
+assets.raccoon_walk_0.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges"><defs><linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient><linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient></defs><rect x="0" y="14" width="10" height="7" fill="#6d6d6d"/><rect x="2" y="14" width="2" height="7" fill="#1c1c1c"/><rect x="6" y="14" width="2" height="7" fill="#1c1c1c"/><rect x="11" y="27" width="3" height="4" fill="#1c1c1c"/><rect x="17" y="27" width="3" height="4" fill="#1c1c1c"/><rect x="9" y="13" width="13" height="14" fill="url(#gFur)"/><rect x="12" y="18" width="7" height="9" fill="#eeeeee"/><rect x="8" y="11" width="15" height="7" fill="url(#gCloak)"/><circle cx="15" cy="12" r="1.5" fill="#ffd700"/><rect x="10" y="2" width="14" height="10" fill="url(#gFur)"/><rect x="11" y="4" width="12" height="8" fill="#eeeeee"/><rect x="11" y="0" width="3" height="3" fill="#6d6d6d"/><rect x="12" y="1" width="1" height="1" fill="#ffa726"/><rect x="20" y="0" width="3" height="3" fill="#6d6d6d"/><rect x="21" y="1" width="1" height="1" fill="#ffa726"/><rect x="12" y="5" width="10" height="4" fill="#1c1c1c"/><rect x="14" y="6" width="1" height="1" fill="#ffeb3b"/><rect x="19" y="6" width="1" height="1" fill="#ffeb3b"/><rect x="16" y="8" width="2" height="1.5" fill="#000000"/><rect x="7" y="15" width="2" height="2" fill="#5c5c5c"/><rect x="23" y="15" width="2" height="2" fill="#5c5c5c"/></svg>`);
+assets.raccoon_walk_1.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges"><defs><linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient><linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient></defs><rect x="0" y="13" width="10" height="7" fill="#6d6d6d" transform="rotate(-5, 5, 16)"/><rect x="2" y="13" width="2" height="7" fill="#1c1c1c" transform="rotate(-5, 5, 16)"/><rect x="6" y="13" width="2" height="7" fill="#1c1c1c" transform="rotate(-5, 5, 16)"/><rect x="10" y="27" width="3" height="4" fill="#1c1c1c"/><rect x="16" y="27" width="3" height="3" fill="#303030"/><rect x="19" y="27" width="3" height="4" fill="#1c1c1c"/><rect x="9" y="13" width="13" height="14" fill="url(#gFur)"/><rect x="12" y="18" width="7" height="9" fill="#eeeeee"/><rect x="8" y="11" width="15" height="7" fill="url(#gCloak)"/><circle cx="15" cy="12" r="1.5" fill="#ffd700"/><rect x="10" y="2" width="14" height="10" fill="url(#gFur)"/><rect x="11" y="4" width="12" height="8" fill="#eeeeee"/><rect x="11" y="0" width="3" height="3" fill="#6d6d6d"/><rect x="12" y="1" width="1" height="1" fill="#ffa726"/><rect x="20" y="0" width="3" height="3" fill="#6d6d6d"/><rect x="21" y="1" width="1" height="1" fill="#ffa726"/><rect x="12" y="5" width="10" height="4" fill="#1c1c1c"/><rect x="14" y="6" width="1" height="1" fill="#ffeb3b"/><rect x="19" y="6" width="1" height="1" fill="#ffeb3b"/><rect x="16" y="8" width="2" height="1.5" fill="#000000"/><rect x="6" y="14" width="2" height="2" fill="#5c5c5c"/><rect x="24" y="15" width="2" height="2" fill="#5c5c5c"/></svg>`);
+assets.raccoon_jump.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges"><defs><linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient><linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient></defs><rect x="0" y="10" width="10" height="7" fill="#6d6d6d" transform="rotate(-25, 5, 12)"/><rect x="2" y="10" width="2" height="7" fill="#1c1c1c" transform="rotate(-25, 5, 12)"/><rect x="6" y="10" width="2" height="7" fill="#1c1c1c" transform="rotate(-25, 5, 12)"/><rect x="11" y="25" width="3" height="3" fill="#1c1c1c"/><rect x="17" y="25" width="3" height="3" fill="#1c1c1c"/><rect x="9" y="11" width="13" height="14" fill="url(#gFur)"/><rect x="12" y="16" width="7" height="9" fill="#eeeeee"/><rect x="7" y="8" width="17" height="7" fill="url(#gCloak)" transform="rotate(-5, 15, 11)"/><circle cx="15" cy="10" r="1.5" fill="#ffd700"/><rect x="10" y="1" width="14" height="10" fill="url(#gFur)"/><rect x="11" y="3" width="12" height="8" fill="#eeeeee"/><rect x="11" y="-1" width="3" height="3" fill="#6d6d6d"/><rect x="12" y="0" width="1" height="1" fill="#ffa726"/><rect x="20" y="-1" width="3" height="3" fill="#6d6d6d"/><rect x="21" y="0" width="1" height="1" fill="#ffa726"/><rect x="12" y="4" width="10" height="4" fill="#1c1c1c"/><rect x="14" y="5" width="1" height="1" fill="#ffeb3b"/><rect x="19" y="5" width="1" height="1" fill="#ffeb3b"/><rect x="16" y="7" width="2" height="1.5" fill="#000000"/><rect x="7" y="11" width="2" height="2" fill="#5c5c5c"/><rect x="23" y="11" width="2" height="2" fill="#5c5c5c"/></svg>`);
+assets.raccoon_throw.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges"><defs><linearGradient id="gCloak" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e5a1c"/><stop offset="100%" stop-color="#1b3d11"/></linearGradient><linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ababab"/><stop offset="100%" stop-color="#5c5c5c"/></linearGradient></defs><rect x="0" y="15" width="10" height="7" fill="#6d6d6d"/><rect x="2" y="15" width="2" height="7" fill="#1c1c1c"/><rect x="11" y="27" width="3" height="4" fill="#1c1c1c"/><rect x="17" y="27" width="3" height="4" fill="#1c1c1c"/><rect x="9" y="13" width="13" height="14" fill="url(#gFur)"/><rect x="12" y="18" width="7" height="9" fill="#eeeeee"/><rect x="8" y="11" width="15" height="7" fill="url(#gCloak)"/><circle cx="15" cy="12" r="1.5" fill="#ffd700"/><rect x="10" y="2" width="14" height="10" fill="url(#gFur)"/><rect x="11" y="4" width="12" height="8" fill="#eeeeee"/><rect x="11" y="0" width="3" height="3" fill="#6d6d6d"/><rect x="12" y="1" width="1" height="1" fill="#ffa726"/><rect x="12" y="5" width="10" height="4" fill="#1c1c1c"/><rect x="16" y="8" width="2" height="1.5" fill="#000000"/><rect x="24" y="13" width="6" height="3" fill="#5c5c5c"/></svg>`);
+assets.raccoon_wet.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges"><defs><linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#78909c"/><stop offset="100%" stop-color="#37474f"/></linearGradient></defs><rect x="5" y="22" width="22" height="8" fill="url(#gFur)" rx="2"/><rect x="8" y="14" width="16" height="10" fill="url(#gFur)"/><rect x="11" y="16" width="3" height="3" fill="#263238"/><rect x="18" y="16" width="3" height="3" fill="#263238"/><rect x="4" y="10" width="2" height="5" fill="#00b0ff"/><rect x="26" y="12" width="2" height="5" fill="#00b0ff"/><rect x="2" y="28" width="28" height="4" fill="#e91e63" opacity="0.8"/></svg>`);
+assets.owner_walk_0.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" width="32" height="48" shape-rendering="crispEdges"><rect x="8" y="0" width="16" height="8" fill="#ffffff"/><rect x="6" y="4" width="20" height="4" fill="#eceff1"/><rect x="10" y="8" width="12" height="10" fill="#ffcc99"/><rect x="8" y="10" width="3" height="6" fill="#4e342e"/><rect x="21" y="10" width="3" height="6" fill="#4e342e"/><rect x="12" y="14" width="8" height="3" fill="#2d1500"/><rect x="6" y="18" width="20" height="20" fill="#ffffff"/><rect x="8" y="18" width="2" height="20" fill="#c62828"/><rect x="14" y="18" width="2" height="20" fill="#c62828"/><rect x="20" y="18" width="2" height="20" fill="#c62828"/><rect x="2" y="18" width="4" height="10" fill="#ffcc99"/><rect x="26" y="21" width="4" height="10" fill="#ffcc99"/><rect x="8" y="38" width="16" height="6" fill="#1565c0"/><rect x="6" y="44" width="6" height="4" fill="#3e2723"/><rect x="17" y="42" width="6" height="4" fill="#3e2723"/></svg>`);
+assets.owner_walk_1.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" width="32" height="48" shape-rendering="crispEdges"><rect x="8" y="0" width="16" height="8" fill="#ffffff"/><rect x="6" y="4" width="20" height="4" fill="#eceff1"/><rect x="10" y="8" width="12" height="10" fill="#ffcc99"/><rect x="8" y="10" width="3" height="6" fill="#4e342e"/><rect x="21" y="10" width="3" height="6" fill="#4e342e"/><rect x="12" y="14" width="8" height="3" fill="#2d1500"/><rect x="6" y="18" width="20" height="20" fill="#ffffff"/><rect x="8" y="18" width="2" height="20" fill="#c62828"/><rect x="14" y="18" width="2" height="20" fill="#c62828"/><rect x="20" y="18" width="2" height="20" fill="#c62828"/><rect x="2" y="21" width="4" height="10" fill="#ffcc99"/><rect x="26" y="18" width="4" height="10" fill="#ffcc99"/><rect x="8" y="38" width="16" height="6" fill="#1565c0"/><rect x="9" y="42" width="6" height="4" fill="#3e2723"/><rect x="20" y="44" width="6" height="4" fill="#3e2723"/></svg>`);
+assets.owner_jump.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" width="32" height="48" shape-rendering="crispEdges"><rect x="8" y="-2" width="16" height="8" fill="#ffffff"/><rect x="10" y="6" width="12" height="10" fill="#ffcc99"/><rect x="4" y="16" width="22" height="20" fill="#ffffff" transform="skewX(-6)"/><rect x="6" y="16" width="2" height="20" fill="#c62828" transform="skewX(-6)"/><rect x="12" y="16" width="2" height="20" fill="#c62828" transform="skewX(-6)"/><rect x="1" y="10" width="4" height="12" fill="#ffcc99" transform="rotate(-25, 2, 10)"/><rect x="27" y="10" width="4" height="12" fill="#ffcc99" transform="rotate(25, 28, 10)"/><rect x="8" y="36" width="16" height="6" fill="#1565c0"/><rect x="6" y="40" width="5" height="4" fill="#3e2723"/><rect x="19" y="40" width="5" height="4" fill="#3e2723"/></svg>`);
+assets.owner_trip.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32" shape-rendering="crispEdges"><rect x="14" y="10" width="22" height="12" fill="#ffffff"/><rect x="16" y="10" width="2" height="12" fill="#c62828"/><rect x="22" y="10" width="2" height="12" fill="#c62828"/><rect x="6" y="8" width="10" height="10" fill="#ffcc99"/><rect x="0" y="14" width="8" height="8" fill="#ffffff" rx="1"/><rect x="36" y="12" width="10" height="5" fill="#1565c0"/><rect x="34" y="21" width="3" height="4" fill="#ffcc99"/><rect x="42" y="20" width="3" height="4" fill="#ffcc99"/></svg>`);
+assets.cotton_candy.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40" shape-rendering="crispEdges"><defs><radialGradient id="pC" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ffb2dd"/><stop offset="60%" stop-color="#ff80ab"/><stop offset="100%" stop-color="#e040fb"/></radialGradient></defs><rect x="6" y="4" width="20" height="24" fill="url(#pC)"/><rect x="4" y="8" width="24" height="16" fill="url(#pC)"/><rect x="8" y="6" width="6" height="4" fill="#ffffff" opacity="0.6"/><rect x="15" y="26" width="2" height="14" fill="#ffe0b2"/></svg>`);
+assets.donut.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="4" y="4" width="16" height="16" fill="#ff4081" rx="4"/><rect x="8" y="8" width="8" height="8" fill="#1c2833"/><rect x="6" y="6" width="2" height="2" fill="#00e5ff"/><rect x="16" y="6" width="2" height="2" fill="#ffeb3b"/></svg>`);
+assets.gem.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><path d="M12,2 L22,12 L12,22 L2,12 Z" fill="#29b6f6"/><rect x="9" y="9" width="4" height="4" fill="#ffffff"/></svg>`);
+assets.apple.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="6" y="6" width="12" height="14" fill="#e53935" rx="3"/><rect x="11" y="2" width="2" height="4" fill="#8d6e63"/></svg>`);
+assets.pizza.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><path d="M12,22 L2,2 L22,2 Z" fill="#ffd54f"/><rect x="2" y="2" width="20" height="3" fill="#a1887f"/></svg>`);
+assets.bread.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="2" y="6" width="20" height="12" fill="#ffe082" rx="3"/><rect x="5" y="9" width="3" height="6" fill="#ffb300"/></svg>`);
+assets.trash_can.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges"><rect x="4" y="4" width="16" height="16" fill="#78909c"/><rect x="2" y="2" width="20" height="3" fill="#cfd8dc"/></svg>`);
+assets.storm_cloud.src = createSvgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50" shape-rendering="crispEdges"><rect x="10" y="10" width="140" height="30" fill="#455a64" rx="10"/><polygon points="60,20 54,34 64,34 58,46" fill="#ffeb3b"/></svg>`);
+
+let score = 0, currentLevel = 1, phase = 1, gameActive = false, isPaused = false, cottonHealth = 100, hasCottonCandy = false;
+const gravity = 0.52, friction = 0.85, keys = {};
+const player = { 
+    x: 100, y: 150, width: 48, height: 48, speed: 6.2, jumpForce: -13.2, xVel: 0, yVel: 0, 
+    jumping: false, grounded: false, facing: 'right', animFrame: 0, animTimer: 0, 
+    throwCooldown: 0, throwAnimTimer: 0, meltAnimTimer: 0,
+    caughtTimer: 0    
+};
+const camera = { x: 0, y: 0, width: canvas.width, height: canvas.height, worldWidth: 2400 };
+const owner = { x: 0, y: 300, width: 40, height: 56, speed: 3.5, yVel: 0, active: false, grounded: false, facing: 'left', stunned: false, stunTimer: 0, animFrame: 0, animTimer: 0 };
+const rainCloud = { x: 100, y: 20, width: 160, height: 50, raining: false, rainTimer: 0, targetX: 300 };
+let ownerSpawnTimer = 0, ownerAlertTimer = 0;
+let platforms = [], items = [], hazards = [], particles = [], projectiles = [], transitions = [];
+let starBackground = [], mountainBackground = [];
+
+// =========================================================================
+// 🛠️ # TABLA DE REGISTRO DE TEXTURAS DE PLATAFORMAS (EDITA AQUÍ)
+// =========================================================================
+// Aquí puedes indicarle al motor qué imagen recortada usar para cada tamaño exacto 
+// de plataforma en cada nivel.
+//
+// USO: registerPlatformTexture(Nivel, Ancho, Alto, 'nombre_de_archivo.png', DesfaseY, AltoVisual, ¿EsTiled?);
+// - Nivel: (1, 2, 3 o 4)
+// - Ancho y Alto físicos de la hitbox en el motor de juego
+// - 'nombre_de_archivo.png': Tu imagen recortada local
+// - DesfaseY: Desplazamiento vertical (número negativo sube el dibujo, ej: -8)
+// - AltoVisual: Deja este parámetro en NULL para calcularlo proporcionalmente al original y evitar el efecto aplastado.
+// - ¿EsTiled?: true para que la textura se repita horizontalmente (como en el suelo)
+// =========================================================================
+const platRegistries = {};
+
+function registerPlatformTexture(level, width, height, filename, offsetY = 0, visualHeight = null, isTiled = false) {
+    const img = new Image();
+    img.src = filename;
+    const key = `${level}_${width}_${height}`;
+    platRegistries[key] = {
+        image: img,
+        offsetY: offsetY,
+        visualHeight: visualHeight,
+        isTiled: isTiled
+    };
+}
+
+// 🌲 --- NIVEL 1: EL BOSQUE (Configurado con tus 3 imágenes de prueba) ---
+registerPlatformTexture(1, 2400, 40, 'Pisobosque.png', -18, null, true);     // # SUELO PRINCIPAL (Repetitivo)
+registerPlatformTexture(1, 220, 15, 'plataformabosquemediana.png', -48, 70, false);   // # PLATAFORMAS MEDIANAS (Sube 8px)
+registerPlatformTexture(1, 180, 15, 'plataformabosquemediana.png', -44, 70, false);  // # PLATAFORMAS PEQUEÑAS (Sube 4px)
+registerPlatformTexture(1, 280, 15, 'plataformagrandebosque.png', -14, 70, false);     // # PLATAFORMA DERECHA FINAL 
+registerPlatformTexture(1, 280, 100, 'plataformagrandebosque.png', 0, null, false);    // # FASE 2: SUELOS DE MADERA ELEVADOS
+
+// 🪠 --- NIVEL 2: LAS TUBERÍAS (Modifica las imágenes cuando las recortes) ---
+registerPlatformTexture(2, 2400, 40, 'pisotub.png', 0, null, true);
+registerPlatformTexture(2, 240, 15, 'tubomediano.png', 0, null, false);
+registerPlatformTexture(2, 180, 15, 'tubopequeño.png', 0, null, false);
+registerPlatformTexture(2, 200, 15, 'tubomediano.png', 0, null, false);
+registerPlatformTexture(2, 220, 15, 'tubomediano.png', 0, null, false);
+registerPlatformTexture(2, 350, 15, 'tubogrande.png', 0, null, false);
+
+// 🏙️ --- NIVEL 3: LA CIUDAD (Viste las plataformas elevadas y el suelo) ---
+registerPlatformTexture(3, 2400, 40, 'Pisociudad.png', 0, null, true);
+registerPlatformTexture(3, 240, 15, 'plataformagrandeciudad.png', -38, 40, false);
+registerPlatformTexture(3, 180, 15, 'plataformaciudadpequeña.png', -4, 40, false);
+registerPlatformTexture(3, 160, 15, 'plataformaciudadpequeña.png', -4, 40, false);
+registerPlatformTexture(3, 200, 15, 'plataformamedianaciudad.png', -46, 70, false);
+registerPlatformTexture(3, 400, 15, 'plataformagrandeciudad.png', -6, 40, false);
+
+// 🎪 --- NIVEL 4: LA FERIA / CIRCO (Ajusta los drapes y carpas colgantes) ---
+registerPlatformTexture(4, 2400, 40, 'pisoferia.png', -18, null, true);
+registerPlatformTexture(4, 240, 15, 'plataformagrandeferia.png', -30, 40, false);
+registerPlatformTexture(4, 180, 15, 'plataformapequeñaferia.png', -10, 40, false);
+registerPlatformTexture(4, 200, 15, 'plataformamedianaferia.png', -30, 40, false);
+registerPlatformTexture(4, 190, 15, 'plataformamedianaferia.png', -30, 40, false);
+
+
+function initParallax() {
+    starBackground = []; mountainBackground = [];
+    for (let i = 0; i < 40; i++) starBackground.push({ x: Math.random() * canvas.width, y: Math.random() * 200, size: Math.random() * 2 + 1 });
+    for (let i = 0; i < 15; i++) mountainBackground.push({ x: i * 220, height: 100 + Math.random() * 80, width: 180 + Math.random() * 80 });
+}
+
+function loadLevel(num, directionPhase) {
+    platforms = []; items = []; hazards = []; particles = []; projectiles = []; transitions = [];
+    let theme = { sky: '#0c0b14', ground: '#2e7d32', plat: '#4caf50' };
+    if (num === 1) { theme.sky = '#0a101d'; theme.ground = '#2e7d32'; theme.plat = '#4caf50'; } 
+    else if (num === 2) { theme.sky = '#0d1117'; theme.ground = '#37474f'; theme.plat = '#546e7a'; } 
+    else if (num === 3) { theme.sky = '#0a0a0f'; theme.ground = '#212121'; theme.plat = '#424242'; } 
+    else if (num === 4) { theme.sky = '#160a24'; theme.ground = '#3e2723'; theme.plat = '#a1887f'; }
+    currentTheme = theme;
+
+    if (directionPhase === 2) {
+        platforms.push({ x: 0, y: 410, width: 2400, height: 40, color: '#01579b', isWaterSurface: true });
+        platforms.push({ x: 0, y: 310, width: 280, height: 100, color: theme.plat }); 
+        platforms.push({ x: 2120, y: 310, width: 280, height: 100, color: theme.plat }); 
+    } else { platforms.push({ x: 0, y: 410, width: 2400, height: 40, color: theme.ground }); }
+
+    if (num === 1) {
+        platforms.push({ x: 250, y: 310, width: 220, height: 15, color: theme.plat }); platforms.push({ x: 530, y: 220, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 780, y: 180, width: 220, height: 15, color: theme.plat }); platforms.push({ x: 1080, y: 230, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 1320, y: 310, width: 220, height: 15, color: theme.plat }); platforms.push({ x: 1600, y: 220, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 1850, y: 180, width: 220, height: 15, color: theme.plat }); platforms.push({ x: 2120, y: 310, width: 280, height: 15, color: theme.plat });
+        transitions.push({ x: 2280, y: 210, width: 60, height: 100, type: 'tree_trunk', targetLevel: 2 });
+    } else if (num === 2) {
+        platforms.push({ x: 0, y: 310, width: 240, height: 15, color: theme.plat }); platforms.push({ x: 300, y: 240, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 540, y: 160, width: 200, height: 15, color: theme.plat }); platforms.push({ x: 800, y: 230, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 1050, y: 310, width: 220, height: 15, color: theme.plat }); platforms.push({ x: 1320, y: 220, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 1550, y: 140, width: 200, height: 15, color: theme.plat }); platforms.push({ x: 1820, y: 230, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 2050, y: 310, width: 350, height: 15, color: theme.plat });
+        transitions.push({ x: 20, y: 210, width: 60, height: 100, type: 'sewer_pipe', targetLevel: 1 }); transitions.push({ x: 2280, y: 210, width: 60, height: 100, type: 'sewer_pipe', targetLevel: 3 });
+    } else if (num === 3) {
+        platforms.push({ x: 0, y: 230, width: 240, height: 15, color: theme.plat }); platforms.push({ x: 290, y: 240, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 520, y: 170, width: 160, height: 15, color: theme.plat }); platforms.push({ x: 740, y: 230, width: 200, height: 15, color: theme.plat });
+        platforms.push({ x: 1000, y: 310, width: 180, height: 15, color: theme.plat }); platforms.push({ x: 1240, y: 220, width: 200, height: 15, color: theme.plat });
+        platforms.push({ x: 1500, y: 150, width: 180, height: 15, color: theme.plat }); platforms.push({ x: 1740, y: 230, width: 200, height: 15, color: theme.plat });
+        platforms.push({ x: 2000, y: 310, width: 400, height: 15, color: theme.plat });
+        transitions.push({ x: 20, y: 130, width: 60, height: 100, type: 'alley_door', targetLevel: 2 }); transitions.push({ x: 2280, y: 210, width: 60, height: 100, type: 'alley_door', targetLevel: 4 });
+    } else if (num === 4) {
+        platforms.push({ x: 0, y: 310, width: 240, height: 15, color: theme.plat }); platforms.push({ x: 300, y: 310, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 530, y: 220, width: 200, height: 15, color: theme.plat }); platforms.push({ x: 780, y: 150, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 1020, y: 230, width: 200, height: 15, color: theme.plat }); platforms.push({ x: 1280, y: 310, width: 180, height: 15, color: theme.plat });
+        platforms.push({ x: 1520, y: 230, width: 180, height: 15, color: theme.plat }); platforms.push({ x: 1760, y: 160, width: 200, height: 15, color: theme.plat });
+        platforms.push({ x: 2020, y: 230, width: 180, height: 15, color: theme.plat }); platforms.push({ x: 2210, y: 330, width: 190, height: 15, color: theme.plat });
+        transitions.push({ x: 20, y: 210, width: 60, height: 100, type: 'carnival_arch', targetLevel: 3 });
+    }
+
+    const addFood = (x, y, points, type) => { items.push({ x, y, width: 24, height: 24, points, type, collected: false }); };
+    if (num === 1) { addFood(320, 270, 10, 'donut'); addFood(580, 180, 15, 'gem'); addFood(820, 100, 10, 'apple'); addFood(1120, 190, 15, 'gem'); addFood(1380, 270, 10, 'bread'); } 
+    else if (num === 2) { addFood(350, 200, 10, 'pizza'); addFood(590, 120, 15, 'gem'); addFood(850, 190, 15, 'gem'); addFood(1100, 270, 10, 'donut'); addFood(1600, 100, 10, 'pizza'); } 
+    else if (num === 3) { addFood(320, 200, 10, 'apple'); addFood(560, 130, 15, 'gem'); addFood(780, 190, 10, 'donut'); addFood(1040, 270, 15, 'gem'); addFood(1550, 110, 10, 'bread'); } 
+    else if (num === 4) { addFood(350, 270, 10, 'donut'); addFood(580, 180, 15, 'gem'); addFood(820, 110, 10, 'pizza'); addFood(1060, 190, 15, 'gem'); addFood(1320, 270, 10, 'bread'); }
+
+    if (num === 4 && directionPhase === 1) items.push({ x: 2280, y: 270, width: 40, height: 60, type: 'cotton_candy', collected: false });
+
+    if (directionPhase === 2) {
+        const addSpout = (x, y, interval) => { hazards.push({ type: 'spout', x, y, interval, timer: Math.random() * interval }); };
+        if (num === 1) { addSpout(820, 140, 90); addSpout(1650, 220, 90); } else if (num === 2) { addSpout(600, 160, 80); addSpout(1400, 220, 80); } 
+        else if (num === 3) { addSpout(560, 170, 75); addSpout(1300, 220, 75); } else if (num === 4) { addSpout(800, 150, 85); addSpout(1560, 230, 85); }
+    }
+
+    // Asignar un índice visual aleatorio (0 a 4) para variar los spritesheets de las plataformas de respaldo
+    for (let plat of platforms) {
+        if (plat.spriteIndex === undefined) {
+            plat.spriteIndex = Math.floor(Math.random() * 5);
+        }
+    }
+}
+
+function startGame() {
+    initAudio(); initParallax();
+    document.getElementById('start-screen').style.display = 'none';
+    const inst = document.getElementById('instructions');
+    if (inst) { inst.style.opacity = '1'; inst.style.visibility = 'visible'; setTimeout(() => { inst.style.opacity = '0'; setTimeout(() => { inst.style.visibility = 'hidden'; }, 1200); }, 5000); }
+
+    score = 0; currentLevel = 1; phase = 1; hasCottonCandy = false; cottonHealth = 100; ownerSpawnTimer = 0; ownerAlertTimer = 0; isPaused = false;
+    customMelodyIndex = 0; 
+    document.getElementById('score-val').innerText = score; document.getElementById('level-val').innerText = `${currentLevel}/4`;
+    document.getElementById('phase-val').innerText = "¡BUSCA EL ALGODÓN!"; document.getElementById('phase-val').style.color = "#ffd54f";
+    document.getElementById('cotton-health-container').style.display = "none";
+    document.getElementById('pause-screen').style.display = "none";
+
+    player.x = 100; player.y = 150; player.xVel = 0; player.yVel = 0; player.throwCooldown = 0; player.throwAnimTimer = 0; player.meltAnimTimer = 0; player.caughtTimer = 0;
+    owner.active = false; owner.stunned = false; owner.stunTimer = 0; owner.yVel = 0;
+    rainCloud.raining = false; rainCloud.rainTimer = 0;
+
+    loadLevel(currentLevel, phase);
+    gameActive = true; startBgm();
+}
+
+function restartGame() { document.getElementById('gameover-screen').style.display = 'none'; document.getElementById('win-screen').style.display = 'none'; startGame(); }
+function failGame(reason) { gameActive = false; stopBgm(); playSound('splash'); document.getElementById('gameover-screen').style.display = 'flex'; document.getElementById('fail-reason').innerText = reason; }
+function winGame() { gameActive = false; stopBgm(); playSound('win'); document.getElementById('win-screen').style.display = 'flex'; document.getElementById('final-score').innerText = score; }
+
+function togglePause() {
+    if (!gameActive || player.meltAnimTimer > 0) return;
+    isPaused = !isPaused;
+    if (isPaused) {
+        document.getElementById('pause-screen').style.display = 'flex';
+        stopBgm();
+    } else {
+        document.getElementById('pause-screen').style.display = 'none';
+        startBgm();
+    }
+}
+
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['Space', 'ArrowUp', 'KeyW'].includes(e.code) && gameActive) e.preventDefault();
+    if ((e.code === 'KeyP' || e.code === 'Escape') && gameActive) togglePause();
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+function safeDrawImage(image, x, y, w, h) { try { if (image && image.complete && image.naturalWidth !== 0) { ctx.drawImage(image, x, y, w, h); } } catch (e) { } }
+
+function update() {
+    if (!gameActive || isPaused) return; 
+
+    // Lógica de captura por el dueño
+    if (player.caughtTimer > 0) {
+        player.caughtTimer--; player.xVel = 0; player.yVel = 0;
+        if (player.caughtTimer === 0) failGame("¡El dueño de la feria te atrapó y recuperó su algodón de azúcar!");
+        return;
+    }
+
+    if (player.meltAnimTimer > 0) { player.meltAnimTimer--; if (player.meltAnimTimer === 0) failGame("¡Tu algodón se derritió!"); return; }
+
+    if (keys['ArrowRight'] || keys['KeyD']) { if (player.xVel < player.speed) player.xVel += 0.82; player.facing = 'right'; }
+    if (keys['ArrowLeft'] || keys['KeyA']) { if (player.xVel > -player.speed) player.xVel -= 0.82; player.facing = 'left'; }
+
+    if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !player.jumping && player.grounded) { player.jumping = true; player.grounded = false; player.yVel = player.jumpForce; playSound('jump'); }
+
+    if (player.throwCooldown > 0) { player.throwCooldown--; }
+    if (player.throwAnimTimer > 0) { player.throwAnimTimer--; }
+    if ((keys['KeyJ'] || keys['KeyF']) && player.throwCooldown === 0) { throwTrash(); player.throwCooldown = 35; player.throwAnimTimer = 12; }
+
+    player.xVel *= friction; player.yVel += gravity;
+
+    // Spawn demorado de 0.5s del dueño al avanzar de nivel
+    if (ownerSpawnTimer > 0) {
+        ownerSpawnTimer--;
+        if (ownerSpawnTimer === 0) {
+            owner.active = true; owner.x = Math.min(camera.worldWidth - 50, player.x + 380); owner.y = 200; owner.yVel = 0; owner.facing = 'left'; owner.stunned = false; owner.stunTimer = 0;
+            ownerAlertTimer = 60; playSound('hit'); document.getElementById('phase-val').innerText = "¡CORRE DEL DUEÑO!";
+        }
+    }
+    if (ownerAlertTimer > 0) ownerAlertTimer--;
+
+    let oldX = player.x, oldY = player.y;
+    player.x += player.xVel; player.y += player.yVel; player.grounded = false;
+
+    for (let plat of platforms) {
+        if (player.x < plat.x + plat.width && player.x + player.width > plat.x && player.y < plat.y + plat.height && player.y + player.height > plat.y) {
+            if (plat.isWaterSurface) { cottonHealth = 0; player.meltAnimTimer = 90; playSound('splash'); return; }
+            if (oldY + player.height <= plat.y && player.yVel >= 0) { player.jumping = false; player.grounded = true; player.yVel = 0; player.y = plat.y - player.height; }
+            else if (oldY >= plat.y + plat.height && player.yVel < 0) { player.yVel = 0; player.y = plat.y + plat.height; }
+            else if (oldX + player.width <= plat.x) { player.x = plat.x - player.width; player.xVel = 0; }
+            else if (oldX >= plat.x + plat.width) { player.x = plat.x + plat.width; player.xVel = 0; }
+        }
+    }
+
+    if (player.y > canvas.height + 50) { if (phase === 1) { player.x = 100; player.y = 150; player.xVel = 0; player.yVel = 0; } else { failGame("¡Te caíste al agua y tu algodón de azúcar se disolvió!"); } }
+
+    for (let gate of transitions) {
+        if (player.x + player.width/2 > gate.x && player.x + player.width/2 < gate.x + gate.width && player.y + player.height > gate.y && player.y < gate.y + gate.height) {
+            if (phase === 1 && player.xVel > 1 && gate.targetLevel > currentLevel) {
+                currentLevel = gate.targetLevel; document.getElementById('level-val').innerText = `${currentLevel}/4`;
+                player.x = 80; player.y = 100; player.xVel = 0; player.yVel = 0; loadLevel(currentLevel, phase); startBgm();
+            } 
+            else if (phase === 2 && player.xVel < -1 && gate.targetLevel < currentLevel) {
+                currentLevel = gate.targetLevel; document.getElementById('level-val').innerText = `${currentLevel}/4`;
+                player.x = camera.worldWidth - 120; player.y = 100; player.xVel = 0; player.yVel = 0; loadLevel(currentLevel, phase); startBgm();
+                owner.active = false; ownerSpawnTimer = 30; // Medio segundo de gracia al entrar
+            }
+        }
+    }
+
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        let proj = projectiles[i]; proj.x += proj.vx; proj.y += proj.vy; proj.vy += 0.22; proj.life--;
+        if (owner.active && !owner.stunned && proj.x < owner.x + owner.width && proj.x + proj.size > owner.x && proj.y < owner.y + owner.height && proj.y + proj.size > owner.y) {
+            owner.stunned = true; owner.stunTimer = 60; proj.life = 0; playSound('hit');
+            for (let s = 0; s < 12; s++) particles.push({ x: owner.x + owner.width/2, y: owner.y + owner.height, xVel: (Math.random() - 0.5) * 6, yVel: -Math.random() * 4 - 2, color: '#ffd54f', size: Math.random() * 4 + 2, life: 30 });
+        }
+        for (let plat of platforms) if (proj.x < plat.x + plat.width && proj.x + proj.size > plat.x && proj.y < plat.y + plat.height && proj.y + proj.size > plat.y) proj.life = 0; 
+        if (proj.life <= 0) projectiles.splice(i, 1);
+    }
+
+    if (owner.active) {
+        if (owner.stunned) {
+            owner.stunTimer--; if (owner.stunTimer <= 0) { owner.stunned = false; }
+            owner.yVel += gravity; let oldOwnerY = owner.y; owner.y += owner.yVel; owner.grounded = false;
+            for (let plat of platforms) { if (owner.x < plat.x + plat.width && owner.x + owner.width > plat.x && owner.y < plat.y + plat.height && owner.y + owner.height > plat.y) { if (oldOwnerY + owner.height <= plat.y && owner.yVel >= 0) { owner.grounded = true; owner.yVel = 0; owner.y = plat.y - owner.height; } } }
+        } else {
+            let diffX = player.x - owner.x;
+            if (Math.abs(diffX) > 10) { if (diffX > 0) { owner.x += owner.speed; owner.facing = 'right'; } else { owner.x -= owner.speed; owner.facing = 'left'; } }
+            owner.animTimer++; if (owner.animTimer > 8) { owner.animTimer = 0; owner.animFrame = (owner.animFrame + 1) % 2; }
+            owner.yVel += gravity; let oldOwnerY = owner.y; owner.y += owner.yVel; owner.grounded = false;
+            for (let plat of platforms) { if (owner.x < plat.x + plat.width && owner.x + owner.width > plat.x && owner.y < plat.y + plat.height && owner.y + owner.height > plat.y) { if (oldOwnerY + owner.height <= plat.y && owner.yVel >= 0) { owner.grounded = true; owner.yVel = 0; owner.y = plat.y - owner.height; } } }
+            if (player.y < owner.y - 50 && owner.grounded && Math.random() < 0.05) { owner.yVel = -11.5; owner.grounded = false; playSound('jump'); }
+            
+            // Activar animación de captura
+            if (player.x < owner.x + owner.width && player.x + player.width > owner.x && player.y < owner.y + owner.height && player.y + player.height > owner.y) {
+                if (player.caughtTimer === 0) { player.caughtTimer = 90; playSound('hit'); }
+            }
+        }
+    }
+
+    for (let item of items) {
+        if (!item.collected && player.x < item.x + item.width && player.x + player.width > item.x && player.y < item.y + item.height && player.y + player.height > item.y) {
+            item.collected = true;
+            if (item.type === 'cotton_candy') { triggerRobberyCutscene(); } 
+            else {
+                score += item.points; document.getElementById('score-val').innerText = score; playSound('coin');
+                for (let i = 0; i < 8; i++) particles.push({ x: item.x + item.width/2, y: item.y + item.height/2, xVel: (Math.random() - 0.5) * 4, yVel: (Math.random() - 0.5) * 4, color: '#ffd54f', size: Math.random() * 4 + 1, life: 25 });
+            }
+        }
+    }
+
+    if (phase === 2 && currentLevel === 1 && player.x < 120) winGame(); 
+
+    if (phase === 2) {
+        if (!rainCloud.active) { rainCloud.active = true; rainCloud.x = player.x - 100; rainCloud.targetX = player.x; }
+        if (Math.abs(rainCloud.x - rainCloud.targetX) < 10) rainCloud.targetX = player.x + (Math.random() - 0.5) * 300;
+        if (rainCloud.x < rainCloud.targetX) rainCloud.x += 2.2; else rainCloud.x -= 2.2;
+        rainCloud.rainTimer++; if (rainCloud.rainTimer > 180) { rainCloud.raining = !rainCloud.raining; rainCloud.rainTimer = 0; }
+
+        if (rainCloud.raining) {
+            if (Math.random() < 0.6) particles.push({ x: rainCloud.x + Math.random() * rainCloud.width, y: rainCloud.y + rainCloud.height, xVel: (Math.random() - 0.2) * 0.4, yVel: 7.2, color: '#81d4fa', size: 3, isRainDrop: true, life: 100 });
+            let isUnderShelter = false;
+            for (let plat of platforms) { if (plat.y < player.y && plat.x < player.x + player.width && plat.x + plat.width > player.x && !plat.isWaterSurface) { isUnderShelter = true; break; } }
+            if (!isUnderShelter && player.x + player.width > rainCloud.x && player.x < rainCloud.x + rainCloud.width) {
+                cottonHealth -= 0.18; updateCottonUI();
+                if (Math.random() < 0.2) particles.push({ x: player.x + 10, y: player.y - 10, xVel: (Math.random() - 0.5) * 2, yVel: Math.random() * 2, color: '#ff80ab', size: 2, life: 15 });
+            }
+        }
+
+        for (let haz of hazards) {
+            if (haz.type === 'puddle' && (haz.life === undefined || haz.life > 0)) if (player.x < haz.x + haz.width && player.x + player.width > haz.x && player.y + player.height >= haz.y && player.y < haz.y + haz.height) { cottonHealth -= 0.5; updateCottonUI(); }
+            if (haz.type === 'spout') { haz.timer += 1; if (haz.timer >= haz.interval) { haz.timer = 0; particles.push({ x: haz.x, y: haz.y + 10, xVel: 0, yVel: 4.8, color: '#00b0ff', size: 5, isWaterDrop: true, life: 120 }); } }
+        }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i]; p.x += p.xVel; p.y += p.yVel; p.life--;
+        if (p.isWaterDrop && phase === 2) {
+            let cottonBox = { x: player.facing === 'right' ? player.x - 5 : player.x + player.width - 15, y: player.y - 15, width: 25, height: 25 };
+            if (p.x > cottonBox.x && p.x < cottonBox.x + cottonBox.width && p.y > cottonBox.y && p.y < cottonBox.y + cottonBox.height) { cottonHealth -= 10; updateCottonUI(); playSound('splash'); p.life = 0; }
+            for (let plat of platforms) if (p.x > plat.x && p.x < plat.x + plat.width && p.y > plat.y && p.y < plat.y + plat.height) p.life = 0;
+        }
+        if (p.isRainDrop) { for (let plat of platforms) if (p.x > plat.x && p.x < plat.x + plat.width && p.y > plat.y && p.y < plat.y + plat.height && !plat.isWaterSurface) { p.life = 0; if (Math.random() < 0.1) createTemporaryPuddle(p.x - 15, plat.y - 3, 30); } }
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    for (let i = hazards.length - 1; i >= 0; i--) { let h = hazards[i]; if (h.isTemporary) { h.life--; if (h.life <= 0) hazards.splice(i, 1); } }
+
+    let targetCamX = player.x - camera.width / 2;
+    if (targetCamX < 0) targetCamX = 0; if (targetCamX > camera.worldWidth - camera.width) targetCamX = camera.worldWidth - camera.width;
+    camera.x += (targetCamX - camera.x) * 0.1;
+
+    player.animTimer++;
+    if (player.animTimer > 6) { player.animTimer = 0; player.animFrame++; }
+}
+
+function createTemporaryPuddle(x, y, width) { let exists = hazards.some(h => h.isTemporary && Math.abs(h.x - x) < 20); if (exists) return; hazards.push({ type: 'puddle', x: x, y: y, width: width, height: 6, isTemporary: true, life: 200 }); }
+function throwTrash() { playSound('throw'); let speed = 9, dir = player.facing === 'right' ? 1 : -1; projectiles.push({ x: player.facing === 'right' ? player.x + player.width : player.x - 12, y: player.y + 12, vx: speed * dir, vy: -3.0, size: 14, life: 90 }); }
+function updateCottonUI() { if (cottonHealth < 0) cottonHealth = 0; document.getElementById('cotton-health-fill').style.width = `${cottonHealth}%`; if (cottonHealth <= 0) player.meltAnimTimer = 90; }
+
+function triggerRobberyCutscene() {
+    playSound('cotton_get'); hasCottonCandy = true; phase = 2; ownerSpawnTimer = 180; 
+    for (let i = 0; i < 20; i++) particles.push({ x: player.x + player.width/2, y: player.y, xVel: (Math.random() - 0.5) * 8, yVel: (Math.random() - 0.5) * 8, color: '#ff80ab', size: Math.random() * 6 + 2, life: 40 });
+    document.getElementById('cotton-health-container').style.display = "inline-block"; document.getElementById('phase-val').innerText = "¡CORRE! ¡EL DUEÑO SE ACERCA!"; document.getElementById('phase-val').style.color = "#ff80ab";
+    updateCottonUI(); startBgm(); 
+}
+
+// Renderizador genérico e inteligente de texturas repetitivas (Tiling)
+function drawTiledPlatformGeneric(image, plat, tileHeight, offsetY) {
+    if (!image.complete || image.naturalWidth === 0) return false;
+    const scale = tileHeight / image.naturalHeight;
+    const tileW = image.naturalWidth * scale;
+    const y = plat.y + offsetY;
+    let x = plat.x;
+    while (x < plat.x + plat.width) {
+        const remaining = (plat.x + plat.width) - x;
+        const drawW = Math.min(tileW, remaining);
+        const srcW = (drawW / tileW) * image.naturalWidth;
+        ctx.drawImage(image, 0, 0, srcW, image.naturalHeight, x, y, drawW, tileHeight);
+        x += tileW;
+    }
+    return true;
+}
+
+// Renderizador inteligente de cortes de texturas para las plataformas de Ciudad (Nivel 3) y Feria (Nivel 4)
+function drawPlatformSprite(image, plat) {
+    const nw = image.naturalWidth;
+    const nh = image.naturalHeight;
+    
+    let sx = 0, sy = 0, sw = nw, sh = nh;
+    const index = plat.spriteIndex !== undefined ? plat.spriteIndex : 0;
+    
+    // Proporciones para cortar cada uno de los 5 bloques del spritesheet (distribuidos en 2 filas)
+    if (index === 0) {
+        sx = 0; sy = 0; sw = nw * 0.22; sh = nh * 0.48;
+    } else if (index === 1) {
+        sx = nw * 0.24; sy = 0; sw = nw * 0.34; sh = nh * 0.48;
+    } else if (index === 2) {
+        sx = nw * 0.59; sy = 0; sw = nw * 0.41; sh = nh * 0.48;
+    } else if (index === 3) {
+        sx = 0; sy = nh * 0.50; sw = nw * 0.48; sh = nh * 0.50;
+    } else {
+        sx = nw * 0.49; sy = nh * 0.50; sw = nw * 0.51; sh = nh * 0.50;
+    }
+    
+    // Configuración por defecto de desfase para la hoja clásica
+    let offsetY = 0;
+    if (currentLevel === 3) {
+        if (index === 0) offsetY = -12;
+        else if (index === 1) offsetY = -6;
+        else if (index === 2) offsetY = -6;
+        else if (index === 3) offsetY = -14;
+    } else if (currentLevel === 4) {
+        if (index === 2 || index === 3) offsetY = -10;
+    }
+
+    ctx.drawImage(
+        image,
+        sx, sy, sw, sh,
+        plat.x, plat.y + offsetY, plat.width, 45
+    );
+}
+
+function draw() {
+    // Escoger de forma segura e inteligente la imagen de fondo de paralaje panorámica para el nivel correspondiente (Nivel 1, 2, 3 o 4)
+    let currentBg = null;
+    if (currentLevel === 1 && assets.forest_bg.complete && assets.forest_bg.naturalWidth !== 0) {
+        currentBg = assets.forest_bg;
+    } else if (currentLevel === 2 && assets.pipes_bg.complete && assets.pipes_bg.naturalWidth !== 0) {
+        currentBg = assets.pipes_bg;
+    } else if (currentLevel === 3 && assets.city_bg.complete && assets.city_bg.naturalWidth !== 0) {
+        currentBg = assets.city_bg;
+    } else if (currentLevel === 4 && assets.circus_bg.complete && assets.circus_bg.naturalWidth !== 0) {
+        currentBg = assets.circus_bg;
+    }
+
+    if (currentBg) {
+        let imgAspect = currentBg.naturalWidth / currentBg.naturalHeight;
+        let bgHeight = canvas.height;
+        let bgWidth = canvas.height * imgAspect;
+        // Efecto paralaje a velocidad uniforme del 30% del movimiento horizontal de la cámara
+        let startX = -(camera.x * 0.3) % bgWidth;
+        for (let x = startX - bgWidth; x < canvas.width + bgWidth; x += bgWidth) {
+            ctx.drawImage(currentBg, x, 0, bgWidth, bgHeight);
+        }
+    } else {
+        // Fondos degradados y elementos celestes si la imagen se encuentra ausente
+        let skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        if (currentLevel === 1) { skyGradient.addColorStop(0, '#020014'); skyGradient.addColorStop(1, '#0c1a30'); } 
+        else if (currentLevel === 2) { skyGradient.addColorStop(0, '#0a0d14'); skyGradient.addColorStop(1, '#1b222c'); } 
+        else if (currentLevel === 3) { skyGradient.addColorStop(0, '#05050d'); skyGradient.addColorStop(1, '#131324'); } 
+        else { skyGradient.addColorStop(0, '#110521'); skyGradient.addColorStop(1, '#361559'); }
+        ctx.fillStyle = skyGradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Estrellas y montañas con profundidad en parallax (Solo de respaldo para que la pantalla no se quede en negro)
+        ctx.save(); starBackground.forEach(star => { ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect((star.x - camera.x * 0.05 + canvas.width) % canvas.width, star.y, star.size, star.size); }); ctx.restore();
+        ctx.save(); ctx.translate(-camera.x * 0.15, 0); ctx.fillStyle = currentLevel === 2 ? '#1c212a' : 'rgba(21, 13, 30, 0.45)'; mountainBackground.forEach(m => { ctx.beginPath(); ctx.moveTo(m.x, canvas.height); ctx.lineTo(m.x + m.width / 2, canvas.height - m.height); ctx.lineTo(m.x + m.width, canvas.height); ctx.closePath(); ctx.fill(); }); ctx.restore();
+    }
+
+    ctx.save(); ctx.translate(-camera.x, -camera.y);
+
+    drawBackgroundScenery();
+    for (let gate of transitions) drawTransitionGate(gate);
+    
+    // Dibujado inteligente y modular de plataformas
+    for (let plat of platforms) { 
+        let drawnWithTexture = false;
+
+        if (plat.isWaterSurface) {
+            ctx.fillStyle = '#0288d1';
+            ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.fillRect(plat.x, plat.y, plat.width, 4);
+            drawnWithTexture = true;
+        } else {
+            // 1) Intentar buscar un registro de textura exacto para este nivel y tamaño de plataforma (# AJUSTABLE)
+            const platKey = `${currentLevel}_${plat.width}_${plat.height}`;
+            const reg = platRegistries[platKey];
+            if (reg && reg.image.complete && reg.image.naturalWidth !== 0) {
+                
+                // # ====================================================================
+                // # CÁLCULO AUTO-PROPORCIONAL DE ALTURA VISUAL (EVITA PLATAFORMAS APLASTADAS)
+                // # ====================================================================
+                // # Si registraste "null" como visualHeight en la tabla, el motor tomará
+                // # la proporción nativa de tu imagen y la escalará para que NUNCA 
+                // # se vea chata o deformada.
+                // # ====================================================================
+                let vHeight = reg.visualHeight;
+                if (vHeight === null || vHeight === undefined) {
+                    if (reg.isTiled) {
+                        vHeight = reg.image.naturalHeight; // En suelos usamos su alto original real
+                    } else {
+                        // En flotantes, escalamos el alto de forma proporcional al ancho (largo) de la plataforma
+                        vHeight = (plat.width / reg.image.naturalWidth) * reg.image.naturalHeight;
+                    }
+                }
+
+                if (reg.isTiled) {
+                    drawnWithTexture = drawTiledPlatformGeneric(reg.image, plat, vHeight, reg.offsetY);
+                } else {
+                    ctx.drawImage(
+                        reg.image,
+                        plat.x,
+                        plat.y + reg.offsetY,
+                        plat.width,
+                        vHeight
+                    );
+                    drawnWithTexture = true;
+                }
+            }
+            
+            // 2) Si no hay un registro manual, usar el renderizado por spritesheet recortado clásico como respaldo (Nivel 3 y 4)
+            if (!drawnWithTexture) {
+                if (currentLevel === 3 && assets.city_plat.complete && assets.city_plat.naturalWidth !== 0) {
+                    drawPlatformSprite(assets.city_plat, plat);
+                    drawnWithTexture = true;
+                }
+                else if (currentLevel === 4 && assets.circus_plat.complete && assets.circus_plat.naturalWidth !== 0) {
+                    drawPlatformSprite(assets.circus_plat, plat);
+                    drawnWithTexture = true;
+                }
+            }
+        }
+
+        // 3) Si es un nivel sin texturas (como el 2) o si las imágenes fallan o no se encuentran, usar renderizado de color plano
+        if (!drawnWithTexture) {
+            ctx.fillStyle = plat.color; 
+            ctx.fillRect(plat.x, plat.y, plat.width, plat.height); 
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; 
+            ctx.fillRect(plat.x, plat.y, plat.width, 4); 
+        }
+    }
+    
+    for (let haz of hazards) { if (haz.type === 'puddle') { ctx.fillStyle = '#0288d1'; ctx.fillRect(haz.x, haz.y, haz.width, haz.height); } if (haz.type === 'spout') { ctx.fillStyle = '#455a64'; ctx.fillRect(haz.x - 8, haz.y, 16, 12); } }
+    if (rainCloud.active) safeDrawImage(assets.storm_cloud, rainCloud.x, rainCloud.y, rainCloud.width, rainCloud.height);
+    for (let item of items) if (!item.collected) drawItem(item);
+    for (let proj of projectiles) drawProjectile(proj);
+    for (let p of particles) { ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); }
+
+    if (owner.active) drawOwner();
+    drawPlayer();
+
+    ctx.restore();
+
+    if (ownerSpawnTimer > 0) { ctx.save(); ctx.fillStyle = 'rgba(5, 5, 12, 0.9)'; ctx.fillRect(0, canvas.height / 2 - 50, canvas.width, 100); ctx.strokeStyle = '#f50057'; ctx.lineWidth = 4; ctx.strokeRect(20, canvas.height / 2 - 45, canvas.width - 40, 90); ctx.fillStyle = '#ff80ab'; ctx.font = '11px "Press Start 2P"'; ctx.textAlign = 'center'; ctx.fillText("¡OH NO, AHÍ VIENE! ¡CORRE!", canvas.width / 2, canvas.height / 2 + 5); ctx.restore(); }
+    if (ownerAlertTimer > 0) { ctx.save(); ctx.fillStyle = 'rgba(5, 5, 12, 0.9)'; ctx.fillRect(0, canvas.height / 2 - 50, canvas.width, 100); ctx.strokeStyle = '#e53935'; ctx.lineWidth = 4; ctx.strokeRect(20, canvas.height / 2 - 45, canvas.width - 40, 90); ctx.fillStyle = '#ffd54f'; ctx.font = '9px "Press Start 2P"'; ctx.textAlign = 'center'; ctx.fillText("¡LADRÓN! ¡DEVUÉLVEME MI ALGODÓN!", canvas.width / 2, canvas.height / 2 + 5); ctx.restore(); }
+}
+
+function drawTransitionGate(gate) {
+    ctx.save();
+    if (gate.type === 'tree_trunk') { ctx.fillStyle = '#3e2723'; ctx.fillRect(gate.x, gate.y, gate.width, gate.height); ctx.fillStyle = '#1a0c02'; ctx.fillRect(gate.x + 15, gate.y + 15, gate.width - 30, gate.height - 15); ctx.fillStyle = '#ffd54f'; ctx.font = '8px "Press Start 2P"'; ctx.fillText("ENTRAR", gate.x - 10, gate.y - 10); } 
+    else if (gate.type === 'sewer_pipe') { ctx.fillStyle = '#1b3d11'; ctx.fillRect(gate.x, gate.y, gate.width, gate.height); ctx.fillStyle = '#081404'; ctx.fillRect(gate.x + 10, gate.y + 10, gate.width - 20, gate.height - 20); ctx.fillStyle = '#00e5ff'; ctx.font = '8px "Press Start 2P"'; ctx.fillText("TUBERÍA", gate.x - 10, gate.y - 10); }
+    else if (gate.type === 'alley_door') { ctx.fillStyle = '#37474f'; ctx.fillRect(gate.x, gate.y, gate.width, gate.height); ctx.fillStyle = '#10171d'; ctx.fillRect(gate.x + 8, gate.y + 8, gate.width - 16, gate.height - 8); ctx.fillStyle = '#ffd54f'; ctx.font = '8px "Press Start 2P"'; ctx.fillText("PUERTA", gate.x - 10, gate.y - 10); }
+    else if (gate.type === 'carnival_arch') { ctx.fillStyle = '#d32f2f'; ctx.fillRect(gate.x, gate.y, gate.width, gate.height); ctx.fillStyle = '#ffe082'; ctx.fillRect(gate.x + 12, gate.y + 12, gate.width - 24, gate.height - 12); ctx.fillStyle = '#ff80ab'; ctx.font = '8px "Press Start 2P"'; ctx.fillText("FERIA", gate.x - 10, gate.y - 10); }
+    ctx.restore();
+}
+
+function drawBackgroundScenery() {
+    if (currentLevel === 1) {
+        // La madriguera se asienta de forma dinámica sobre el suelo (Fase 1: Y=410) o la plataforma elevada (Fase 2: Y=310)
+        let madrigueraY = (phase === 2) ? 310 : 410;
+        
+        let w = 120;
+        let h = 60;
+        
+        // Dibujado de la Madriguera con la imagen personalizada madrigueramapa.png (o fallback circular de seguridad)
+        if (assets.madriguera.complete && assets.madriguera.naturalWidth !== 0) {
+            h = (w / assets.madriguera.naturalWidth) * assets.madriguera.naturalHeight;
+            if (isNaN(h) || h === 0) h = 60; // Evitar fallos de carga inicial
+            ctx.drawImage(assets.madriguera, 100 - w / 2, madrigueraY - h, w, h);
+        } else {
+            // Círculos procedimentales de respaldo si la imagen aún no carga
+            ctx.fillStyle = '#4e342e'; 
+            ctx.beginPath(); 
+            ctx.arc(100, madrigueraY, 48, Math.PI, 0); 
+            ctx.fill(); 
+            
+            ctx.fillStyle = '#2d1500'; 
+            ctx.beginPath(); 
+            ctx.arc(100, madrigueraY, 28, Math.PI, 0); 
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#ffffff'; 
+        ctx.font = '7px "Press Start 2P"'; 
+        // Centrar dinámicamente el texto sobre la madriguera personalizada
+        const textWidth = ctx.measureText("MADRIGUERA").width;
+        ctx.fillText("MADRIGUERA", 100 - textWidth / 2, madrigueraY - h - 10);
+    }
+    if (currentLevel === 2) { ctx.fillStyle = '#263238'; ctx.fillRect(150, 50, 20, 360); ctx.fillRect(1000, 50, 30, 360); ctx.fillRect(1800, 80, 20, 360); }
+    if (currentLevel === 4) { ctx.fillStyle = '#d32f2f'; ctx.fillRect(2200, 270, 140, 140); ctx.fillStyle = '#ffffff'; ctx.fillRect(2200, 270, 20, 140); ctx.fillRect(2240, 270, 20, 140); ctx.fillRect(2280, 270, 20, 140); ctx.fillRect(2320, 270, 20, 140); }
+}
+
+function drawProjectile(proj) { ctx.save(); ctx.translate(proj.x + proj.size/2, proj.y + proj.size/2); ctx.rotate((Date.now() / 120) % (Math.PI * 2)); safeDrawImage(assets.trash_can, -proj.size/2, -proj.size/2, proj.size, proj.size); ctx.restore(); }
+function drawItem(item) { ctx.save(); ctx.translate(item.x, item.y + Math.sin((Date.now() / 200) + item.x) * 4); safeDrawImage(assets[item.type], 0, 0, item.width, item.height); ctx.restore(); }
+
+function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+
+    if (player.facing === 'left') { ctx.translate(player.width, 0); ctx.scale(-1, 1); }
+
+    // ⚰️ CONTROL DE MUERTE DIRECTA CON LÁPIDA (Estable y seguro)
+    if (player.meltAnimTimer > 0) {
+        safeDrawImage(assets.gravestone, 0, 0, player.width, player.height);
+        ctx.restore();
+        return;
+    }
+
+    let activeStrip = null; let totalFrames = 1; let isTempStatic = false;
+
+    if (player.caughtTimer > 0) {
+        activeStrip = assets.mapache_caught; 
+        totalFrames = 3;
+    }
+    else if (phase === 2) {
+        if (!player.grounded) { 
+            activeStrip = assets.mapache_jump_cotton; 
+            totalFrames = 4; 
+        } 
+        else if (Math.abs(player.xVel) < 0.2) { 
+            activeStrip = assets.mapache_run_cotton; 
+            totalFrames = 4; 
+            isTempStatic = true; 
+        } 
+        else { 
+            activeStrip = assets.mapache_run_cotton;
+            totalFrames = 4;
+        }
+    } else {
+        if (player.throwAnimTimer > 0) { 
+            activeStrip = assets.mapache_throw; 
+            totalFrames = 4; 
+        } 
+        else if (!player.grounded) { 
+            activeStrip = assets.mapache_jump; 
+            totalFrames = 4; 
+        } 
+        else if (Math.abs(player.xVel) < 0.2) { 
+            activeStrip = assets.mapache_run; 
+            totalFrames = 6; 
+            isTempStatic = true; 
+        } 
+        else { 
+            activeStrip = assets.mapache_run; 
+            totalFrames = 6; 
+        }
+    }
+
+    try {
+        if (activeStrip && activeStrip.complete && activeStrip.naturalWidth !== 0) {
+            let frameWidth = activeStrip.naturalWidth / totalFrames;
+            let frameHeight = activeStrip.naturalHeight;
+            let frameIndex = 0;
+            
+            if (player.caughtTimer > 0) {
+                frameIndex = Math.floor((90 - player.caughtTimer) / 30) % 3; 
+            }
+            else if (isTempStatic || totalFrames === 1) { 
+                frameIndex = 0; 
+            } 
+            else { 
+                frameIndex = player.animFrame % totalFrames; 
+            }
+            
+            let isLargeAnim = (player.caughtTimer > 0);
+            let drawWidth = isLargeAnim ? player.width * 2 : player.width + 8;
+            let drawHeight = isLargeAnim ? player.height * 2 : player.height + 8;
+            let drawOffsetX = isLargeAnim ? -24 : -4;
+            let drawOffsetY = isLargeAnim ? -12 : -4;
+
+            // Recortar 2 píxeles de holgura solo si estamos corriendo sin algodón (6 frames)
+            // Esto evita que se filtre (bleed) la punta de la cola del vecino en el spritesheet
+            let cropWidth = frameWidth;
+            if (activeStrip === assets.mapache_run && !isTempStatic) {
+                cropWidth = frameWidth - 2; 
+            }
+
+            ctx.drawImage( activeStrip, frameIndex * frameWidth, 0, cropWidth, frameHeight, drawOffsetX, drawOffsetY, drawWidth, drawHeight );
+        } else {
+            let frameImg;
+            if (player.caughtTimer > 0) frameImg = assets.raccoon_wet; else if (player.throwAnimTimer > 0) frameImg = assets.raccoon_throw; else if (!player.grounded) frameImg = assets.raccoon_jump; else frameImg = (player.animFrame % 2 === 0) ? assets.raccoon_walk_0 : assets.raccoon_walk_1;
+            safeDrawImage(frameImg, 0, 0, player.width, player.height);
+            if (hasCottonCandy && player.meltAnimTimer === 0) { ctx.save(); ctx.globalAlpha = cottonHealth / 100; safeDrawImage(assets.cotton_candy, -8, -12, 24, 30); ctx.restore(); }
+        }
+    } catch(e) {}
+    ctx.restore();
+}
+
+function drawOwner() {
+    ctx.save(); ctx.translate(owner.x, owner.y); if (owner.facing === 'left') { ctx.translate(owner.width, 0); ctx.scale(-1, 1); }
+    let frameImg; if (owner.stunned) frameImg = assets.owner_trip; else if (!owner.grounded) frameImg = assets.owner_jump; else frameImg = (owner.animFrame === 0) ? assets.owner_walk_0 : assets.owner_walk_1;
+    if (owner.stunned) safeDrawImage(frameImg, -6, 20, 52, 36); else safeDrawImage(frameImg, 0, 0, owner.width, owner.height);
+    if (owner.stunned) { ctx.fillStyle = '#ffeb3b'; let sOff = (Math.floor(Date.now() / 100) % 2) * 6; ctx.font = '8px "Press Start 2P"'; ctx.fillText("⭐", 5 - sOff, 5); ctx.fillText("⭐", 25 + sOff, 8); }
+    ctx.restore();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+ctx.imageSmoothingEnabled = false; loop();
+</script>
+</body>
+</html>
